@@ -125,11 +125,11 @@ class _HomePageState extends State<HomePage> {
               Positioned.fill(
                 child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: FractionallySizedBox(
-                    heightFactor: 0.95,
+                  child: SizedBox(
+                    height: h * 0.85, // 画面の高さに対して 85%
                     child: Image.asset(
                       sel.butsudan,
-                      fit: BoxFit.contain,
+                      fit: BoxFit.fitHeight, // 高さだけに合わせる（横幅は無視）
                     ),
                   ),
                 ),
