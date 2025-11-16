@@ -10,12 +10,14 @@ void main() {
   runApp(
     ChangeNotifierProvider(
       create: (_) => SelectedAssets(), // 初期値は app_state.dart 内で定義済み
-      child: SmadanApp(),
+      child: const SmadanApp(),
     ),
   );
 }
 
 class SmadanApp extends StatelessWidget {
+  const SmadanApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -24,12 +26,14 @@ class SmadanApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
       ),
-      home: MainScreen(),
+      home: const MainScreen(),
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
   _MainScreenState createState() => _MainScreenState();
 }
@@ -38,10 +42,10 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-    HomePage(),
-    NewsPage(),
-    PeoplePage(),
-    SettingsPage(), // ← 設定タブ
+    const HomePage(),
+    const NewsPage(),
+    const PeoplePage(),
+    const SettingsPage(), // ← 設定タブ
   ];
 
   @override

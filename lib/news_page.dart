@@ -42,7 +42,7 @@ class _NewsPageState extends State<NewsPage> {
           .toList();
     } catch (_) {
       // 2) 無ければデフォルト想定ファイルを試す
-      final candidates = const [
+      const candidates = [
         _NewsEntry(title: 'ご利用ガイド', file: 'howto.html'),
         _NewsEntry(title: 'よくある質問', file: 'faq.html'),
         _NewsEntry(title: 'プライバシーポリシー', file: 'privacy.html'),

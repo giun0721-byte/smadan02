@@ -71,7 +71,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final allPaths = manifest.keys.cast<String>();
 
       // 画像拡張子のみ
-      bool _isImage(String p) {
+      bool isImage(String p) {
         final lp = p.toLowerCase();
         return lp.endsWith('.png') ||
             lp.endsWith('.jpg') ||
@@ -80,25 +80,25 @@ class _SettingsPageState extends State<SettingsPage> {
       }
 
       // 動画拡張子のみ
-      bool _isVideo(String p) {
+      bool isVideo(String p) {
         final lp = p.toLowerCase();
         return lp.endsWith('.mp4') ||
             lp.endsWith('.mov') ||
             lp.endsWith('.webm');
       }
 
-      List<String> _filterImages(String prefix) =>
-          allPaths.where((p) => p.startsWith(prefix) && _isImage(p)).toList()
+      List<String> filterImages(String prefix) =>
+          allPaths.where((p) => p.startsWith(prefix) && isImage(p)).toList()
             ..sort();
 
-      List<String> _filterVideos(String prefix) =>
-          allPaths.where((p) => p.startsWith(prefix) && _isVideo(p)).toList()
+      List<String> filterVideos(String prefix) =>
+          allPaths.where((p) => p.startsWith(prefix) && isVideo(p)).toList()
             ..sort();
 
-      final bg = _filterImages('assets/bg/');
-      final butsudan = _filterImages('assets/butsudan/');
-      final ihai = _filterImages('assets/ihai/');
-      final effects = _filterVideos('assets/effect/');
+      final bg = filterImages('assets/bg/');
+      final butsudan = filterImages('assets/butsudan/');
+      final ihai = filterImages('assets/ihai/');
+      final effects = filterVideos('assets/effect/');
 
       if (!mounted) return;
       setState(() {
@@ -374,7 +374,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                             ),
                                           ),
                                         );
-                                      }).toList(),
+                                      }),
 
                                       // 「背景画像を追加」ボタン
                                       GestureDetector(
@@ -510,7 +510,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                               ),
                                             ),
                                           );
-                                        }).toList(),
+                                        }),
                                       ],
                                     ),
                                   ),
@@ -675,7 +675,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                             ],
                                           ),
                                         );
-                                      }).toList(),
+                                      }),
                                     ],
                                   ),
                                 ),

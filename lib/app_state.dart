@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 
 /// 位牌1つ分の情報（画像パス＋位置＋拡大率）
