@@ -119,7 +119,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _ihaiCandidates = ihai.isNotEmpty
             ? ihai
             : const [
-                'assets/ihai/ihai.png',
+                'assets/ihai/ihai1.png',
                 'assets/ihai/ihai2.png',
               ];
         _currentIhaiTemplate ??=
@@ -163,7 +163,7 @@ class _SettingsPageState extends State<SettingsPage> {
           'assets/butsudan/butsudan-modan.png',
         ];
         _ihaiCandidates = const [
-          'assets/ihai/ihai.png',
+          'assets/ihai/ihai1.png',
           'assets/ihai/ihai2.png',
         ];
         _currentIhaiTemplate ??=
@@ -192,7 +192,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ? sel.ihaiList.first
         : (_ihaiCandidates.isNotEmpty
             ? _ihaiCandidates.first
-            : 'assets/ihai/ihai.png');
+            : 'assets/ihai/ihai1.png');
 
     return Scaffold(
       appBar: AppBar(title: const Text('設定')),

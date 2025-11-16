@@ -49,7 +49,7 @@ class SelectedAssets extends ChangeNotifier {
 
   // ===== 位牌（複数） =====
   final List<IhaiItem> _ihaiItems = [
-    const IhaiItem(assetPath: 'assets/ihai/ihai.png'),
+    const IhaiItem(assetPath: 'assets/ihai/ihai1.png'),
   ];
 
   /// 位牌の詳細リスト（位置＆スケールつき）
