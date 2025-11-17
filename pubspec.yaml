@@ -18,7 +18,7 @@ dependencies:
   path_provider: ^2.1.4
   shared_preferences: ^2.3.2
   file_picker: ^8.1.2
-  video_player: ^2.9.2   # 例：最新に合わせて
+  video_player: ^2.9.2
   
 dev_dependencies:
   flutter_test:
