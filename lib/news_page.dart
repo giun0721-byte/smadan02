@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// NEWS 1件分
 class NewsArticle {
@@ -34,22 +35,6 @@ class NewsArticle {
 
   String get dateLabel => date ?? '';
 }
-
-/// 上部に出す「スマダンの使い方」テキスト
-const String kSmadanHowToText = 'スマダンとは、スマートフォンの仏壇、略して「スマ壇」です。\n'
-    '身近にお仏壇を感じていただき、少し気楽に供養していただけるように開発しました。\n'
-    '通常のお仏壇ではできなかったことを、デジタルの力を使って実現していくことを目指しています。\n\n'
-    '【スマダンの基本的な使い方】\n'
-    '・ご本尊やご先祖さまのお位牌の画像を登録しておくことで、\n'
-    '　外出先でも、手を合わせたいときにすぐ画面を開くことができます。\n'
-    '・ご命日や年回忌、法事の日などに、スマダンを開いて合掌し、\n'
-    '　お参りの気持ちをあらわすことができます。\n'
-    '・複数人で同じ画面を見ながら、お参りの思い出を語り合うこともできます。\n\n'
-    '【このアプリの考え方】\n'
-    'スマダンは、あくまでも「本来のお仏壇やお寺のお参りを補うもの」です。\n'
-    'ご自宅のお仏壇や菩提寺でのお参りを大切にしながら、\n'
-    '日々の暮らしの中でも、ふとした時に手を合わせられるように、\n'
-    'そっと寄り添う道具としてお使いください。';
 
 class NewsPage extends StatefulWidget {
   const NewsPage({super.key});
@@ -92,6 +77,7 @@ class _NewsPageState extends State<NewsPage> {
           .map((e) => NewsArticle.fromJson(e as Map<String, dynamic>))
           .toList();
 
+      // 日付の新しい順
       articles.sort(
         (a, b) => (b.date ?? '').compareTo(a.date ?? ''),
       );
@@ -111,8 +97,9 @@ class _NewsPageState extends State<NewsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 上の「NEWS」は消したい → タイトルを空文字に
       appBar: AppBar(
-        title: const Text('NEWS'),
+        title: const Text(''),
       ),
       body: SafeArea(
         child: _error != null
@@ -123,13 +110,13 @@ class _NewsPageState extends State<NewsPage> {
 
                   return Column(
                     children: [
-                      // 上 60%：スマダンの使い方＋NEWS一覧
+                      // 上 60%：お知らせ一覧のみ
                       Expanded(
                         flex: 6,
                         child: _buildTopFrame(),
                       ),
                       const Divider(height: 1),
-                      // 下 40%：左 菩提寺情報、右 年回表
+                      // 下 40%：左 菩提寺 / 右 年回表
                       Expanded(
                         flex: 4,
                         child: isNarrow
@@ -178,6 +165,7 @@ class _NewsPageState extends State<NewsPage> {
     );
   }
 
+  /// 上フレーム：お知らせのみ
   Widget _buildTopFrame() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -188,19 +176,7 @@ class _NewsPageState extends State<NewsPage> {
       child: ListView(
         children: [
           const Text(
-            'スマダンの使い方',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            kSmadanHowToText,
-            style: TextStyle(fontSize: 16, height: 1.6),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 4),
-          const Text(
-            'お知らせ（NEWS）',
+            'お知らせ',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -375,7 +351,9 @@ class NewsDetailPage extends StatelessWidget {
   }
 }
 
-/// 下段 左：菩提寺情報
+/// =======================
+/// 下段 左：菩提寺パネル
+/// =======================
 class TempleInfoPanel extends StatefulWidget {
   const TempleInfoPanel({super.key});
 
@@ -384,14 +362,9 @@ class TempleInfoPanel extends StatefulWidget {
 }
 
 class _TempleInfoPanelState extends State<TempleInfoPanel> {
-  final _formKey = GlobalKey<FormState>();
-
-  final _templeNameController = TextEditingController();
-  final _sectController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-
+  String _templeName = '';
+  String _phone = '';
+  String _email = '';
   bool _loading = true;
 
   static const _keyTempleName = 'temple_name';
@@ -403,35 +376,232 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
   @override
   void initState() {
     super.initState();
-    _loadSavedData();
+    _loadSummary();
   }
 
-  Future<void> _loadSavedData() async {
+  Future<void> _loadSummary() async {
     final prefs = await SharedPreferences.getInstance();
-    _templeNameController.text = prefs.getString(_keyTempleName) ?? '';
-    _sectController.text = prefs.getString(_keySect) ?? '';
-    _addressController.text = prefs.getString(_keyAddress) ?? '';
-    _phoneController.text = prefs.getString(_keyPhone) ?? '';
-    _emailController.text = prefs.getString(_keyEmail) ?? '';
     setState(() {
+      _templeName = prefs.getString(_keyTempleName) ?? '';
+      _phone = prefs.getString(_keyPhone) ?? '';
+      _email = prefs.getString(_keyEmail) ?? '';
       _loading = false;
     });
   }
 
-  Future<void> _saveData() async {
-    if (!_formKey.currentState!.validate()) return;
-
+  Future<void> _openEditDialog() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyTempleName, _templeNameController.text.trim());
-    await prefs.setString(_keySect, _sectController.text.trim());
-    await prefs.setString(_keyAddress, _addressController.text.trim());
-    await prefs.setString(_keyPhone, _phoneController.text.trim());
-    await prefs.setString(_keyEmail, _emailController.text.trim());
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('菩提寺の情報を保存しました。')),
+    final initial = TempleInfoData(
+      templeName: prefs.getString(_keyTempleName) ?? '',
+      sect: prefs.getString(_keySect) ?? '',
+      address: prefs.getString(_keyAddress) ?? '',
+      phone: prefs.getString(_keyPhone) ?? '',
+      email: prefs.getString(_keyEmail) ?? '',
     );
+
+    final updated = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // 保存 or キャンセルを押すまで閉じられないように
+      builder: (context) => TempleInfoDialog(
+        initialData: initial,
+        keys: const TempleInfoKeys(
+          templeNameKey: _keyTempleName,
+          sectKey: _keySect,
+          addressKey: _keyAddress,
+          phoneKey: _keyPhone,
+          emailKey: _keyEmail,
+        ),
+      ),
+    );
+
+    if (updated == true) {
+      // 保存されたらサマリーを更新
+      await _loadSummary();
+    }
+  }
+
+  Future<void> _callTemple() async {
+    if (_phone.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('電話番号が登録されていません。')),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: _phone.trim());
+    if (!await launchUrl(uri)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('電話アプリを開けませんでした。')),
+      );
+    }
+  }
+
+  Future<void> _mailTemple() async {
+    if (_email.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('メールアドレスが登録されていません。')),
+      );
+      return;
+    }
+    final uri = Uri(
+      scheme: 'mailto',
+      path: _email.trim(),
+    );
+    if (!await launchUrl(uri)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('メールアプリを開けませんでした。')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        color: Colors.orange.shade50,
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final title = _templeName.isNotEmpty ? _templeName : '菩提寺';
+
+    return Container(
+      color: Colors.orange.shade50,
+      child: InkWell(
+        onTap: _openEditDialog,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '菩提寺の名前や住所、連絡先を登録しておくことができます。',
+                style: TextStyle(fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 8),
+              if (_phone.isNotEmpty || _email.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_phone.isNotEmpty)
+                      Text(
+                        '電話：$_phone',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    if (_email.isNotEmpty)
+                      Text(
+                        'メール：$_email',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _callTemple,
+                    icon: const Icon(Icons.phone),
+                    label: const Text('菩提寺に電話'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: _mailTemple,
+                    icon: const Icon(Icons.mail),
+                    label: const Text('菩提寺にメール'),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              const Align(
+                alignment: Alignment.bottomRight,
+                child: Text(
+                  'タップで菩提寺情報を編集 ▶',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 菩提寺情報をダイアログで編集するためのデータクラス
+class TempleInfoData {
+  final String templeName;
+  final String sect;
+  final String address;
+  final String phone;
+  final String email;
+
+  const TempleInfoData({
+    this.templeName = '',
+    this.sect = '',
+    this.address = '',
+    this.phone = '',
+    this.email = '',
+  });
+}
+
+class TempleInfoKeys {
+  final String templeNameKey;
+  final String sectKey;
+  final String addressKey;
+  final String phoneKey;
+  final String emailKey;
+
+  const TempleInfoKeys({
+    required this.templeNameKey,
+    required this.sectKey,
+    required this.addressKey,
+    required this.phoneKey,
+    required this.emailKey,
+  });
+}
+
+/// 菩提寺情報登録ウィンドウ（ダイアログ）
+class TempleInfoDialog extends StatefulWidget {
+  final TempleInfoData initialData;
+  final TempleInfoKeys keys;
+
+  const TempleInfoDialog({
+    super.key,
+    required this.initialData,
+    required this.keys,
+  });
+
+  @override
+  State<TempleInfoDialog> createState() => _TempleInfoDialogState();
+}
+
+class _TempleInfoDialogState extends State<TempleInfoDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  late TextEditingController _templeNameController;
+  late TextEditingController _sectController;
+  late TextEditingController _addressController;
+  late TextEditingController _phoneController;
+  late TextEditingController _emailController;
+
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _templeNameController =
+        TextEditingController(text: widget.initialData.templeName);
+    _sectController = TextEditingController(text: widget.initialData.sect);
+    _addressController =
+        TextEditingController(text: widget.initialData.address);
+    _phoneController = TextEditingController(text: widget.initialData.phone);
+    _emailController = TextEditingController(text: widget.initialData.email);
   }
 
   @override
@@ -444,75 +614,88 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     super.dispose();
   }
 
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _saving = true;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        widget.keys.templeNameKey, _templeNameController.text.trim());
+    await prefs.setString(widget.keys.sectKey, _sectController.text.trim());
+    await prefs.setString(
+        widget.keys.addressKey, _addressController.text.trim());
+    await prefs.setString(widget.keys.phoneKey, _phoneController.text.trim());
+    await prefs.setString(widget.keys.emailKey, _emailController.text.trim());
+
+    if (!mounted) return;
+    Navigator.of(context).pop(true); // 更新あり
+  }
+
+  void _cancel() {
+    Navigator.of(context).pop(false); // 変更なし
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.orange.shade50,
-      padding: const EdgeInsets.all(12),
-      child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '菩提寺の情報登録',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'ご家族が相談しやすいように、\nふだんお世話になっているお寺の情報を\nメモしておくことができます。',
-                      style: TextStyle(fontSize: 14, height: 1.5),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTextField(
-                      label: '寺の名前',
-                      controller: _templeNameController,
-                      hint: '例）正宗寺',
-                      required: true,
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      label: '宗派',
-                      controller: _sectController,
-                      hint: '例）臨済宗妙心寺派',
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      label: '住所',
-                      controller: _addressController,
-                      hint: '例）愛媛県松山市◯◯◯',
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      label: '電話番号',
-                      controller: _phoneController,
-                      hint: '例）089-000-0000',
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      label: 'メールアドレス',
-                      controller: _emailController,
-                      hint: '例）example@example.com',
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _saveData,
-                        child: const Text(
-                          '保存',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ),
-                  ],
+    return AlertDialog(
+      title: const Text('菩提寺の情報登録'),
+      content: SizedBox(
+        width: 400,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTextField(
+                  label: '寺の名前',
+                  controller: _templeNameController,
+                  hint: '例）正宗寺',
+                  required: true,
                 ),
-              ),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  label: '宗派',
+                  controller: _sectController,
+                  hint: '例）臨済宗妙心寺派',
+                ),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  label: '住所',
+                  controller: _addressController,
+                  hint: '例）愛媛県松山市◯◯◯',
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  label: '電話番号',
+                  controller: _phoneController,
+                  hint: '例）089-000-0000',
+                ),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  label: 'メールアドレス',
+                  controller: _emailController,
+                  hint: '例）example@example.com',
+                ),
+              ],
             ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : _cancel,
+          child: const Text('キャンセル'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: const Text('保存'),
+        ),
+      ],
     );
   }
 
@@ -521,9 +704,11 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     required TextEditingController controller,
     String? hint,
     bool required = false,
+    int maxLines = 1,
   }) {
     return TextFormField(
       controller: controller,
+      maxLines: maxLines,
       style: const TextStyle(fontSize: 16),
       decoration: InputDecoration(
         labelText: label,
@@ -542,7 +727,9 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
   }
 }
 
-/// 下段 右：年回早見表（HTMLのロジックを Dart に移植）
+/// =======================
+/// 下段 右：年回表パネル
+/// =======================
 class NenkiPanel extends StatefulWidget {
   const NenkiPanel({super.key});
 
@@ -614,6 +801,11 @@ class _NenkiPanelState extends State<NenkiPanel> {
   @override
   Widget build(BuildContext context) {
     final nowYear = DateTime.now().year;
+    final quickYears = [
+      nowYear, // 今年
+      nowYear + 1, // 来年
+      nowYear + 6, // 6年後
+    ];
 
     return Container(
       color: Colors.blue.shade50,
@@ -622,13 +814,13 @@ class _NenkiPanelState extends State<NenkiPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '年回法要 早見表',
+            '年回表',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(
-            'ご命年（西暦）を入れると、今後の年回（1・3・7・13・17・25・33・50回忌）を自動計算します。\n（今年は $nowYear 年です）',
-            style: const TextStyle(fontSize: 14, height: 1.5),
+          const Text(
+            '亡くなった年を西暦で入力してください。',
+            style: TextStyle(fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 8),
           Row(
@@ -654,17 +846,12 @@ class _NenkiPanelState extends State<NenkiPanel> {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
-            '※今日以降に当たる年のみ表示します。',
-            style: TextStyle(fontSize: 12, color: Colors.black54),
-          ),
-          const SizedBox(height: 4),
           Wrap(
             spacing: 4,
             runSpacing: 4,
             children: [
               const Text('クイック入力：', style: TextStyle(color: Colors.black54)),
-              for (final y in [2018, 2019, 2020, 2021, 2022])
+              for (final y in quickYears)
                 OutlinedButton(
                   onPressed: () => _quickSetYear(y),
                   child: Text('$y'),
@@ -682,7 +869,7 @@ class _NenkiPanelState extends State<NenkiPanel> {
               child: _rows.isEmpty
                   ? const Center(
                       child: Text(
-                        'ご命年を入力してください。',
+                        '年を入力して「計算」を押してください。',
                         style: TextStyle(fontSize: 14),
                       ),
                     )
