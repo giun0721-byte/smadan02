@@ -291,6 +291,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// 位牌ウィジェットの配置
+  ///
+  /// ※ 修正ポイント：
+  ///   以前は left/top を高さベースで引いていたため、幅が細長い位牌だと
+  ///   「少し左」に見えてしまっていた。
+  ///   → Alignment(cx, cy) を使って、真の中心で配置するように変更。
   Widget _buildIhaiWidget(
     BuildContext context,
     IhaiItem item,
@@ -300,15 +306,17 @@ class _HomePageState extends State<HomePage> {
   ) {
     final ihaiHeight = h * 0.40 * item.scale;
 
+    // 0.0〜1.0 の正規化座標を安全にクランプ
     final cx = item.centerX.clamp(0.0, 1.0);
     final cy = item.centerY.clamp(0.0, 1.0);
 
-    final left = cx * w - ihaiHeight / 2;
-    final top = cy * h - ihaiHeight * 0.5;
+    // Alignment を使って「中心座標」を素直に指定
+    // x: 0.0→左, 1.0→右 を -1.0〜1.0 に変換
+    // y: 0.0→上, 1.0→下  を -1.0〜1.0 に変換
+    final alignment = Alignment(cx * 2 - 1, cy * 2 - 1);
 
-    return Positioned(
-      left: left,
-      top: top,
+    return Align(
+      alignment: alignment,
       child: GestureDetector(
         onScaleStart: (details) {
           _startScale = item.scale;
@@ -319,6 +327,7 @@ class _HomePageState extends State<HomePage> {
           if (index < 0 || index >= items.length) return;
           final current = items[index];
 
+          // 画面幅・高さに対しての移動量を正規化
           final dxNorm = details.focalPointDelta.dx / w;
           final dyNorm = details.focalPointDelta.dy / h;
 

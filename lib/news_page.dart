@@ -48,6 +48,8 @@ class _NewsPageState extends State<NewsPage> {
   bool _loading = true;
   String? _error;
 
+  NewsArticle? _openedArticle; // ウィンドウ表示中の記事
+
   @override
   void initState() {
     super.initState();
@@ -94,51 +96,65 @@ class _NewsPageState extends State<NewsPage> {
     }
   }
 
+  void _openArticleWindow(NewsArticle article) {
+    setState(() {
+      _openedArticle = article;
+    });
+  }
+
+  void _closeArticleWindow() {
+    setState(() {
+      _openedArticle = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 上の「NEWS」は消したい → タイトルを空文字に
-      appBar: AppBar(
-        title: const Text(''),
-      ),
-      body: SafeArea(
-        child: _error != null
-            ? _buildError()
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  final isNarrow = constraints.maxWidth < 700;
+      // ← AppBarを完全に消す（枠もなし）
+      body: Stack(
+        children: [
+          SafeArea(
+            child: _error != null
+                ? _buildError()
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 700;
 
-                  return Column(
-                    children: [
-                      // 上 60%：お知らせ一覧のみ
-                      Expanded(
-                        flex: 6,
-                        child: _buildTopFrame(),
-                      ),
-                      const Divider(height: 1),
-                      // 下 40%：左 菩提寺 / 右 年回表
-                      Expanded(
-                        flex: 4,
-                        child: isNarrow
-                            ? const Column(
-                                children: [
-                                  Expanded(child: TempleInfoPanel()),
-                                  Divider(height: 1),
-                                  Expanded(child: NenkiPanel()),
-                                ],
-                              )
-                            : const Row(
-                                children: [
-                                  Expanded(child: TempleInfoPanel()),
-                                  VerticalDivider(width: 1),
-                                  Expanded(child: NenkiPanel()),
-                                ],
-                              ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                      return Column(
+                        children: [
+                          // 上 60%：お知らせ一覧のみ
+                          Expanded(
+                            flex: 6,
+                            child: _buildTopFrame(),
+                          ),
+                          const Divider(height: 1),
+                          // 下 40%：左 菩提寺 / 右 年回表
+                          Expanded(
+                            flex: 4,
+                            child: isNarrow
+                                ? const Column(
+                                    children: [
+                                      Expanded(child: TempleInfoPanel()),
+                                      Divider(height: 1),
+                                      Expanded(child: NenkiPanel()),
+                                    ],
+                                  )
+                                : const Row(
+                                    children: [
+                                      Expanded(child: TempleInfoPanel()),
+                                      VerticalDivider(width: 1),
+                                      Expanded(child: NenkiPanel()),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+          if (_openedArticle != null) _buildArticleOverlay(),
+        ],
       ),
     );
   }
@@ -165,185 +181,265 @@ class _NewsPageState extends State<NewsPage> {
     );
   }
 
-  /// 上フレーム：お知らせのみ
+  /// 上フレーム：お知らせ一覧
   Widget _buildTopFrame() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final count = _articles.length;
+
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: ListView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // タイトル＋件数バッジ
+          Row(
+            children: [
+              const Icon(Icons.campaign_outlined),
+              const SizedBox(width: 8),
+              const Text(
+                'お知らせ',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              if (count > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.black.withOpacity(0.05),
+                  ),
+                  child: Text(
+                    '$count件',
+                    style: const TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 4),
           const Text(
-            'お知らせ',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            'お寺からのお知らせや法要のご案内が表示されます。',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.black54,
+            ),
           ),
           const SizedBox(height: 8),
-          if (_articles.isEmpty)
-            const Text(
-              '現在、お知らせはありません。',
-              style: TextStyle(fontSize: 16),
-            )
-          else
-            ..._articles.map(_buildNewsCard),
-          const SizedBox(height: 8),
+
+          // 一覧部分
+          Expanded(
+            child: count == 0
+                ? const Center(
+                    child: Text(
+                      '現在、お知らせはありません。',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: _articles.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (context, index) {
+                      final article = _articles[index];
+                      return _buildNewsCard(article);
+                    },
+                  ),
+          ),
         ],
       ),
     );
   }
 
+  /// 一覧用カード：アイキャッチ＋タイトル＋日付＋本文サマリー
   Widget _buildNewsCard(NewsArticle article) {
     final hasThumb =
         (article.thumbnail != null && article.thumbnail!.isNotEmpty);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => NewsDetailPage(article: article),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (hasThumb) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      'assets/news/${article.thumbnail}',
-                      width: 90,
-                      height: 90,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 90,
-                          height: 90,
-                          color: Colors.grey.shade200,
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.image_not_supported),
-                        );
-                      },
-                    ),
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openArticleWindow(article),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (hasThumb) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/news/${article.thumbnail}',
+                    width: 90,
+                    height: 90,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 90,
+                        height: 90,
+                        color: Colors.grey.shade200,
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.image_not_supported),
+                      );
+                    },
                   ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        article.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // タイトル
+                    Text(
+                      article.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      if (article.dateLabel.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          article.dateLabel,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Text(
-                        article.bodySnippet,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          height: 1.4,
-                        ),
-                      ),
+                    ),
+
+                    // 日付
+                    if (article.dateLabel.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          'くわしく見る ▶',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade700,
-                          ),
+                      Text(
+                        article.dateLabel,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
                         ),
                       ),
                     ],
-                  ),
+
+                    // 本文サマリー
+                    const SizedBox(height: 6),
+                    Text(
+                      article.bodySnippet,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black54,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
 
-class NewsDetailPage extends StatelessWidget {
-  final NewsArticle article;
-
-  const NewsDetailPage({super.key, required this.article});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(article.title),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (article.dateLabel.isNotEmpty) ...[
-                Text(
-                  article.dateLabel,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade700,
-                  ),
+  /// 記事の内容を表示するオーバーレイ（下メニューが隠れないサイズ）
+  Widget _buildArticleOverlay() {
+    final article = _openedArticle!;
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _closeArticleWindow,
+        child: Container(
+          color: Colors.black54,
+          alignment: Alignment.center,
+          child: GestureDetector(
+            // 中身タップで閉じないように
+            onTap: () {},
+            child: FractionallySizedBox(
+              heightFactor: 0.7, // 画面の70% → 下のメニューは隠れない
+              widthFactor: 0.9,
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(height: 12),
-              ],
-              Text(
-                article.title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (article.thumbnail != null &&
-                  article.thumbnail!.isNotEmpty) ...[
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      'assets/news/${article.thumbnail}',
-                      fit: BoxFit.cover,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ヘッダ
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (article.dateLabel.isNotEmpty)
+                                  Text(
+                                    article.dateLabel,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  article.title,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _closeArticleWindow,
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                    const Divider(height: 1),
+                    if (article.thumbnail != null &&
+                        article.thumbnail!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/news/${article.thumbnail}',
+                              height: 140,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            article.body,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              height: 1.6,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 右下の「閉じる」ボタンは削除
+                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
-              Text(
-                article.body,
-                style: const TextStyle(fontSize: 18, height: 1.6),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -363,8 +459,10 @@ class TempleInfoPanel extends StatefulWidget {
 
 class _TempleInfoPanelState extends State<TempleInfoPanel> {
   String _templeName = '';
+  String _sect = '';
   String _phone = '';
   String _email = '';
+  String _address = '';
   bool _loading = true;
 
   static const _keyTempleName = 'temple_name';
@@ -383,12 +481,15 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _templeName = prefs.getString(_keyTempleName) ?? '';
+      _sect = prefs.getString(_keySect) ?? '';
       _phone = prefs.getString(_keyPhone) ?? '';
       _email = prefs.getString(_keyEmail) ?? '';
+      _address = prefs.getString(_keyAddress) ?? '';
       _loading = false;
     });
   }
 
+  /// ロングタップで登録ウィンドウ（編集）
   Future<void> _openEditDialog() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -402,7 +503,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
 
     final updated = await showDialog<bool>(
       context: context,
-      barrierDismissible: false, // 保存 or キャンセルを押すまで閉じられないように
+      barrierDismissible: false, // 保存 or キャンセルまで閉じない
       builder: (context) => TempleInfoDialog(
         initialData: initial,
         keys: const TempleInfoKeys(
@@ -416,9 +517,139 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     );
 
     if (updated == true) {
-      // 保存されたらサマリーを更新
       await _loadSummary();
     }
+  }
+
+  /// タップで「電話する／メールする／行ってみる」メニュー
+  Future<void> _openActionDialog() async {
+    final name = _templeName.isNotEmpty ? _templeName : '菩提寺';
+    final sect = _sect.isNotEmpty ? _sect : '';
+    final address = _address.isNotEmpty ? _address : '';
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      builder: (context) {
+        return Center(
+          child: FractionallySizedBox(
+            heightFactor: 0.38, // ← 少し高さUP（情報追加のため）
+            widthFactor: 0.9,
+            child: Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, // ← ★左揃え
+                  children: [
+                    // ☆ お寺の名前
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
+
+                    // ☆ 宗派
+                    if (sect.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        sect,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+
+                    // ☆ 住所
+                    if (address.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        address,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+
+                    const SizedBox(height: 16), // ← ボタン類前に余白追加
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF8C200), // ← 山吹色
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12), // ← 角丸少し強め
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _callTemple();
+                        },
+                        icon: const Icon(Icons.phone, size: 22),
+                        label:
+                            const Text('電話する', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF8C200),
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _mailTemple();
+                        },
+                        icon: const Icon(Icons.mail, size: 22),
+                        label:
+                            const Text('メールする', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF8C200),
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _goTemple();
+                        },
+                        icon: const Icon(Icons.map, size: 22),
+                        label:
+                            const Text('行ってみる', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _callTemple() async {
@@ -454,6 +685,56 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     }
   }
 
+  Future<void> _goTemple() async {
+    if (_address.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('住所が登録されていません。')),
+      );
+      return;
+    }
+    final encoded = Uri.encodeComponent(_address.trim());
+    final uri =
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Googleマップを開けませんでした。')),
+      );
+    }
+  }
+
+  /// temple_ico.png を角丸・和紙風背景で表示（1.5倍サイズ）
+  Widget _buildTempleAvatar() {
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFFDF8E1), // 和紙の淡いクリーム
+            Color(0xFFF7EEC4),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(2, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.asset(
+          'assets/news/temple_ico.png',
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -463,68 +744,100 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
       );
     }
 
-    final title = _templeName.isNotEmpty ? _templeName : '菩提寺';
+    final bool isRegistered = _templeName.isNotEmpty;
 
     return Container(
       color: Colors.orange.shade50,
       child: InkWell(
-        onTap: _openEditDialog,
+        onTap: isRegistered ? _openActionDialog : null,
+        onLongPress: _openEditDialog,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                '菩提寺の名前や住所、連絡先を登録しておくことができます。',
-                style: TextStyle(fontSize: 14, height: 1.4),
-              ),
-              const SizedBox(height: 8),
-              if (_phone.isNotEmpty || _email.isNotEmpty)
-                Column(
+              // --- 未登録時の表示 ---
+              if (!isRegistered) ...[
+                const Text(
+                  '菩提寺',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '長押しで菩提寺を登録しましょう',
+                  style: TextStyle(fontSize: 14, height: 1.5),
+                ),
+                const Spacer(),
+                const Align(
+                  alignment: Alignment.bottomRight,
+                  child: Text(
+                    '長押しで登録 ▶',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ),
+              ],
+
+              // --- 登録済み表示 ---
+              if (isRegistered) ...[
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_phone.isNotEmpty)
-                      Text(
-                        '電話：$_phone',
-                        style: const TextStyle(fontSize: 14),
+                    _buildTempleAvatar(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start, // ← 左寄せ
+                        children: [
+                          // お寺の名前（左寄せ）
+                          Text(
+                            _templeName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+
+                          // 宗派（あれば表示）
+                          if (_sect.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _sect,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                              textAlign: TextAlign.left,
+                            ),
+                          ],
+
+                          // 住所（あれば表示）
+                          if (_address.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _address,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.black87,
+                                height: 1.3,
+                              ),
+                              textAlign: TextAlign.left,
+                            ),
+                          ],
+                        ],
                       ),
-                    if (_email.isNotEmpty)
-                      Text(
-                        'メール：$_email',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    const SizedBox(height: 8),
+                    ),
                   ],
                 ),
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: _callTemple,
-                    icon: const Icon(Icons.phone),
-                    label: const Text('菩提寺に電話'),
+                const Spacer(),
+                const Align(
+                  alignment: Alignment.bottomRight,
+                  child: Text(
+                    'タップで連絡／長押しで登録 ▶',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: _mailTemple,
-                    icon: const Icon(Icons.mail),
-                    label: const Text('菩提寺にメール'),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              const Align(
-                alignment: Alignment.bottomRight,
-                child: Text(
-                  'タップで菩提寺情報を編集 ▶',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -641,7 +954,7 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('菩提寺の情報登録'),
+      title: const Text('お寺の情報'),
       content: SizedBox(
         width: 400,
         child: SingleChildScrollView(
@@ -651,35 +964,65 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTextField(
-                  label: '寺の名前',
+                  label: 'お寺の名前',
                   controller: _templeNameController,
-                  hint: '例）正宗寺',
-                  required: true,
+                  hint: '例）◯◯寺',
+                  isRequired: true,
                 ),
                 const SizedBox(height: 8),
                 _buildTextField(
                   label: '宗派',
                   controller: _sectController,
-                  hint: '例）臨済宗妙心寺派',
+                  hint: '例）◯◯宗◯◯派',
                 ),
                 const SizedBox(height: 8),
                 _buildTextField(
                   label: '住所',
                   controller: _addressController,
-                  hint: '例）愛媛県松山市◯◯◯',
+                  hint: '例）〒xxx-xxxx◯◯市◯◯町',
                   maxLines: 2,
                 ),
                 const SizedBox(height: 8),
                 _buildTextField(
                   label: '電話番号',
                   controller: _phoneController,
-                  hint: '例）089-000-0000',
+                  hint: '例）xxx-xxx-xxxx',
+                  onChanged: (value) {
+                    final onlyNum = value.replaceAll(RegExp(r'[^0-9]'), '');
+                    String formatted = onlyNum;
+
+                    if (onlyNum.length > 3 && onlyNum.length <= 6) {
+                      formatted =
+                          '${onlyNum.substring(0, 3)}-${onlyNum.substring(3)}';
+                    } else if (onlyNum.length > 6) {
+                      formatted =
+                          '${onlyNum.substring(0, 3)}-${onlyNum.substring(3, 6)}-${onlyNum.substring(6)}';
+                    }
+
+                    if (formatted != value) {
+                      _phoneController.value = TextEditingValue(
+                        text: formatted,
+                        selection:
+                            TextSelection.collapsed(offset: formatted.length),
+                      );
+                    }
+                  },
                 ),
                 const SizedBox(height: 8),
                 _buildTextField(
                   label: 'メールアドレス',
                   controller: _emailController,
                   hint: '例）example@example.com',
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'メールアドレスを入力してください';
+                    }
+                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                        .hasMatch(value.trim())) {
+                      return '正しい形式のメールアドレスを入力してください';
+                    }
+                    return null;
+                  },
                 ),
               ],
             ),
@@ -703,8 +1046,10 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
     required String label,
     required TextEditingController controller,
     String? hint,
-    bool required = false,
+    bool isRequired = false,
     int maxLines = 1,
+    void Function(String)? onChanged, // ← 追加
+    String? Function(String?)? validator, // ← 追加
   }) {
     return TextFormField(
       controller: controller,
@@ -715,14 +1060,16 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
         hintText: hint,
         border: const OutlineInputBorder(),
       ),
-      validator: required
-          ? (value) {
-              if (value == null || value.trim().isEmpty) {
-                return '$label を入力してください。';
-              }
-              return null;
-            }
-          : null,
+      onChanged: onChanged, // ← 追加：電話番号の自動整形がここで動く
+      validator: validator ??
+          (isRequired
+              ? (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '$label を入力してください。';
+                  }
+                  return null;
+                }
+              : null),
     );
   }
 }
