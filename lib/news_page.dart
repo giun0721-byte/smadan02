@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart'
+    show rootBundle, Clipboard, ClipboardData;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -129,7 +130,7 @@ class _NewsPageState extends State<NewsPage> {
                             child: _buildTopFrame(),
                           ),
                           const Divider(height: 1),
-                          // 下 40%：左 菩提寺 / 右 年回表
+                          // 下 40%：左 お寺情報 / 右 年回表
                           Expanded(
                             flex: 4,
                             child: isNarrow
@@ -229,7 +230,7 @@ class _NewsPageState extends State<NewsPage> {
 
           const SizedBox(height: 4),
           const Text(
-            'お寺からのお知らせや法要のご案内が表示されます。',
+            'スマダンのお知らせや使い方が表示されます。',
             style: TextStyle(
               fontSize: 12,
               color: Colors.black54,
@@ -448,7 +449,7 @@ class _NewsPageState extends State<NewsPage> {
 }
 
 /// =======================
-/// 下段 左：菩提寺パネル
+/// 下段 左：お寺情報パネル（背景画像）
 /// =======================
 class TempleInfoPanel extends StatefulWidget {
   const TempleInfoPanel({super.key});
@@ -523,7 +524,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
 
   /// タップで「電話する／メールする／行ってみる」メニュー
   Future<void> _openActionDialog() async {
-    final name = _templeName.isNotEmpty ? _templeName : '菩提寺';
+    final name = _templeName.isNotEmpty ? _templeName : 'お寺';
     final sect = _sect.isNotEmpty ? _sect : '';
     final address = _address.isNotEmpty ? _address : '';
 
@@ -543,7 +544,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, // ← ★左揃え
+                  crossAxisAlignment: CrossAxisAlignment.start, // ← 左揃え
                   children: [
                     // ☆ お寺の名前
                     Text(
@@ -747,98 +748,109 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     final bool isRegistered = _templeName.isNotEmpty;
 
     return Container(
-      color: Colors.orange.shade50,
+      // 背景画像：縦100％でカバー（横は見切れOK）
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/news/bg_temple.jpg'),
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        ),
+      ),
       child: InkWell(
         onTap: isRegistered ? _openActionDialog : null,
         onLongPress: _openEditDialog,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- 未登録時の表示 ---
-              if (!isRegistered) ...[
-                const Text(
-                  '菩提寺',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  '長押しで菩提寺を登録しましょう',
-                  style: TextStyle(fontSize: 14, height: 1.5),
-                ),
-                const Spacer(),
-                const Align(
-                  alignment: Alignment.bottomRight,
-                  child: Text(
-                    '長押しで登録 ▶',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+        child: Container(
+          // 半透明で文字を読みやすく
+          color: Colors.white.withOpacity(0.75),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- 未登録時の表示 ---
+                if (!isRegistered) ...[
+                  const Text(
+                    'お寺情報',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
-
-              // --- 登録済み表示 ---
-              if (isRegistered) ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTempleAvatar(),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start, // ← 左寄せ
-                        children: [
-                          // お寺の名前（左寄せ）
-                          Text(
-                            _templeName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.left,
-                          ),
-
-                          // 宗派（あれば表示）
-                          if (_sect.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _sect,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.black87,
-                              ),
-                              textAlign: TextAlign.left,
-                            ),
-                          ],
-
-                          // 住所（あれば表示）
-                          if (_address.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _address,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.black87,
-                                height: 1.3,
-                              ),
-                              textAlign: TextAlign.left,
-                            ),
-                          ],
-                        ],
-                      ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '長押しでお寺を登録しましょう',
+                    style: TextStyle(fontSize: 14, height: 1.5),
+                  ),
+                  const Spacer(),
+                  const Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      '長押しで登録 ▶',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
                     ),
-                  ],
-                ),
-                const Spacer(),
-                const Align(
-                  alignment: Alignment.bottomRight,
-                  child: Text(
-                    'タップで連絡／長押しで登録 ▶',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
-                ),
+                ],
+
+                // --- 登録済み表示 ---
+                if (isRegistered) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTempleAvatar(),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start, // ← 左寄せ
+                          children: [
+                            // お寺の名前（左寄せ）
+                            Text(
+                              _templeName,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.left,
+                            ),
+
+                            // 宗派（あれば表示）
+                            if (_sect.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _sect,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                                textAlign: TextAlign.left,
+                              ),
+                            ],
+
+                            // 住所（あれば表示）
+                            if (_address.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _address,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black87,
+                                  height: 1.3,
+                                ),
+                                textAlign: TextAlign.left,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  const Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      'タップで連絡／長押しで登録 ▶',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -1048,8 +1060,8 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
     String? hint,
     bool isRequired = false,
     int maxLines = 1,
-    void Function(String)? onChanged, // ← 追加
-    String? Function(String?)? validator, // ← 追加
+    void Function(String)? onChanged,
+    String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
@@ -1060,7 +1072,7 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
         hintText: hint,
         border: const OutlineInputBorder(),
       ),
-      onChanged: onChanged, // ← 追加：電話番号の自動整形がここで動く
+      onChanged: onChanged,
       validator: validator ??
           (isRequired
               ? (value) {
@@ -1075,7 +1087,7 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
 }
 
 /// =======================
-/// 下段 右：年回表パネル
+/// 下段 右：年回表パネル（タップでウィンドウ）
 /// =======================
 class NenkiPanel extends StatefulWidget {
   const NenkiPanel({super.key});
@@ -1085,6 +1097,74 @@ class NenkiPanel extends StatefulWidget {
 }
 
 class _NenkiPanelState extends State<NenkiPanel> {
+  Future<void> _openNenkiDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      builder: (context) {
+        return Center(
+          child: FractionallySizedBox(
+            heightFactor: 0.6,
+            widthFactor: 0.9,
+            child: Dialog(
+              insetPadding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const _NenkiDialog(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.blue.shade50,
+      child: InkWell(
+        onTap: _openNenkiDialog,
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '年回表',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 4),
+              Text(
+                '亡くなった年から、今後の年回の年を確認できます。',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              Spacer(),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Text(
+                  'タップして年回を計算 ▶',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 年回表の計算ウィンドウ本体
+class _NenkiDialog extends StatefulWidget {
+  const _NenkiDialog({Key? key}) : super(key: key);
+
+  @override
+  State<_NenkiDialog> createState() => _NenkiDialogState();
+}
+
+class _NenkiDialogState extends State<_NenkiDialog> {
   final _yearController = TextEditingController();
   List<_NenkiRow> _rows = [];
 
@@ -1116,11 +1196,13 @@ class _NenkiPanelState extends State<NenkiPanel> {
 
     final rows = <_NenkiRow>[];
     for (final c in _cycles) {
-      final yr = year + c - 1; // HTMLと同じ計算
+      final yr = year + c - 1; // 命年＋(回忌−1)
       if (yr >= nowYear) {
-        final note = (c == 33 || c == 50) ? '節目の大法要の目安' : '';
+        // ★ 1回忌 → 1周忌
+        final label = (c == 1) ? '1周忌' : '${c}回忌';
+        const note = ''; // 「節目の大法要の目安」は表示しない
         rows.add(_NenkiRow(
-          label: '$c回忌',
+          label: label,
           year: yr,
           note: note,
         ));
@@ -1145,24 +1227,93 @@ class _NenkiPanelState extends State<NenkiPanel> {
     _calcNenki();
   }
 
+  Future<void> _copyResults() async {
+    if (_rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('コピーする年回の一覧がありません。')),
+      );
+      return;
+    }
+
+    final buffer = StringBuffer();
+    for (final r in _rows) {
+      if (r.year == null) {
+        if (r.note.isNotEmpty) {
+          buffer.writeln(r.note);
+        }
+      } else {
+        final wareki = _formatWareki(r.year!);
+        if (wareki.isEmpty) {
+          buffer.writeln('${r.label}　${r.year}年');
+        } else {
+          buffer.writeln('${r.label}　${r.year}年（$wareki）');
+        }
+      }
+    }
+
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('年回一覧をコピーしました。')),
+    );
+  }
+
+  /// 西暦年 → 和暦表示（令和・平成・昭和・大正・明治）
+  String _formatWareki(int year) {
+    if (year >= 2019) {
+      final n = year - 2018; // 2019 → 1
+      final y = (n == 1) ? '元' : '$n';
+      return '令和$y年';
+    } else if (year >= 1989) {
+      final n = year - 1988; // 1989 → 1
+      final y = (n == 1) ? '元' : '$n';
+      return '平成$y年';
+    } else if (year >= 1926) {
+      final n = year - 1925; // 1926 → 1
+      final y = (n == 1) ? '元' : '$n';
+      return '昭和$y年';
+    } else if (year >= 1912) {
+      final n = year - 1911; // 1912 → 1
+      final y = (n == 1) ? '元' : '$n';
+      return '大正$y年';
+    } else if (year >= 1868) {
+      final n = year - 1867; // 1868 → 1
+      final y = (n == 1) ? '元' : '$n';
+      return '明治$y年';
+    }
+    // それ以前は空文字（西暦のみ表示）
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final nowYear = DateTime.now().year;
+    // 今年・1年前・2年前
     final quickYears = [
-      nowYear, // 今年
-      nowYear + 1, // 来年
-      nowYear + 6, // 6年後
+      nowYear,
+      nowYear - 1,
+      nowYear - 2,
     ];
 
-    return Container(
-      color: Colors.blue.shade50,
+    return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '年回表',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          // タイトル＋閉じるボタン
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '年回表',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(
@@ -1206,6 +1357,26 @@ class _NenkiPanelState extends State<NenkiPanel> {
             ],
           ),
           const SizedBox(height: 8),
+          // 計算結果＋コピー
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '計算結果',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              if (_rows.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _copyResults,
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text(
+                    '一覧をコピー',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -1232,21 +1403,17 @@ class _NenkiPanelState extends State<NenkiPanel> {
                             ),
                           );
                         }
+                        final wareki = _formatWareki(r.year!);
+                        final titleText = wareki.isEmpty
+                            ? '${r.label}　${r.year}年'
+                            : '${r.label}　${r.year}年（$wareki）';
+
                         return ListTile(
                           dense: true,
                           title: Text(
-                            '${r.label}　${r.year}年',
+                            titleText,
                             style: const TextStyle(fontSize: 16),
                           ),
-                          subtitle: r.note.isNotEmpty
-                              ? Text(
-                                  r.note,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black54,
-                                  ),
-                                )
-                              : null,
                         );
                       },
                     ),
