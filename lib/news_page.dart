@@ -112,7 +112,6 @@ class _NewsPageState extends State<NewsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ← AppBarを完全に消す（枠もなし）
       body: Stack(
         children: [
           SafeArea(
@@ -358,10 +357,9 @@ class _NewsPageState extends State<NewsPage> {
           color: Colors.black54,
           alignment: Alignment.center,
           child: GestureDetector(
-            // 中身タップで閉じないように
             onTap: () {},
             child: FractionallySizedBox(
-              heightFactor: 0.7, // 画面の70% → 下のメニューは隠れない
+              heightFactor: 0.7,
               widthFactor: 0.9,
               child: Card(
                 shape: RoundedRectangleBorder(
@@ -436,7 +434,6 @@ class _NewsPageState extends State<NewsPage> {
                         ),
                       ),
                     ),
-                    // 右下の「閉じる」ボタンは削除
                   ],
                 ),
               ),
@@ -504,7 +501,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
 
     final updated = await showDialog<bool>(
       context: context,
-      barrierDismissible: false, // 保存 or キャンセルまで閉じない
+      barrierDismissible: false,
       builder: (context) => TempleInfoDialog(
         initialData: initial,
         keys: const TempleInfoKeys(
@@ -533,9 +530,10 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
       barrierDismissible: true,
       barrierColor: Colors.black54,
       builder: (context) {
-        return Center(
+        return Align(
+          alignment: const Alignment(0, -0.15), // 画面中央よりやや上に
           child: FractionallySizedBox(
-            heightFactor: 0.38, // ← 少し高さUP（情報追加のため）
+            heightFactor: 0.4,
             widthFactor: 0.9,
             child: Card(
               shape: RoundedRectangleBorder(
@@ -544,28 +542,40 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, // ← 左揃え
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ☆ お寺の名前
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    // お寺名：角丸白ボタン風
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 4,
+                            offset: const Offset(1, 2),
+                          ),
+                        ],
                       ),
-                      textAlign: TextAlign.left,
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
 
-                    // ☆ 宗派
                     if (sect.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
                         sect,
                         style: const TextStyle(fontSize: 14),
                       ),
                     ],
 
-                    // ☆ 住所
                     if (address.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -574,18 +584,19 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                       ),
                     ],
 
-                    const SizedBox(height: 16), // ← ボタン類前に余白追加
+                    const SizedBox(height: 16),
 
+                    // ★ お年寄り向けの柔らかい色のボタン
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 52,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF8C200), // ← 山吹色
-                          foregroundColor: Colors.black87,
+                          backgroundColor: const Color(0xFFFFF3C4), // クリーム色
+                          foregroundColor: const Color(0xFF5D4037), // 濃い茶色
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12), // ← 角丸少し強め
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         onPressed: () {
@@ -593,19 +604,21 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                           _callTemple();
                         },
                         icon: const Icon(Icons.phone, size: 22),
-                        label:
-                            const Text('電話する', style: TextStyle(fontSize: 16)),
+                        label: const Text(
+                          '電話する',
+                          style: TextStyle(fontSize: 17),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 52,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF8C200),
-                          foregroundColor: Colors.black87,
+                          backgroundColor: const Color(0xFFFFF3C4),
+                          foregroundColor: const Color(0xFF5D4037),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -616,19 +629,21 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                           _mailTemple();
                         },
                         icon: const Icon(Icons.mail, size: 22),
-                        label:
-                            const Text('メールする', style: TextStyle(fontSize: 16)),
+                        label: const Text(
+                          'メールする',
+                          style: TextStyle(fontSize: 17),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 52,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF8C200),
-                          foregroundColor: Colors.black87,
+                          backgroundColor: const Color(0xFFFFF3C4),
+                          foregroundColor: const Color(0xFF5D4037),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -639,8 +654,10 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                           _goTemple();
                         },
                         icon: const Icon(Icons.map, size: 22),
-                        label:
-                            const Text('行ってみる', style: TextStyle(fontSize: 16)),
+                        label: const Text(
+                          '行ってみる',
+                          style: TextStyle(fontSize: 17),
+                        ),
                       ),
                     ),
                   ],
@@ -703,7 +720,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     }
   }
 
-  /// temple_ico.png を角丸・和紙風背景で表示（1.5倍サイズ）
+  /// （未使用だが残しても問題なし）
   Widget _buildTempleAvatar() {
     return Container(
       width: 72,
@@ -712,7 +729,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
         borderRadius: BorderRadius.circular(12),
         gradient: const LinearGradient(
           colors: [
-            Color(0xFFFDF8E1), // 和紙の淡いクリーム
+            Color(0xFFFDF8E1),
             Color(0xFFF7EEC4),
           ],
           begin: Alignment.topLeft,
@@ -748,7 +765,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     final bool isRegistered = _templeName.isNotEmpty;
 
     return Container(
-      // 背景画像：縦100％でカバー（横は見切れOK）
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/news/bg_temple.jpg'),
@@ -760,7 +776,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
         onTap: isRegistered ? _openActionDialog : null,
         onLongPress: _openEditDialog,
         child: Container(
-          // 半透明で文字を読みやすく
           color: Colors.white.withOpacity(0.75),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -790,56 +805,41 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
 
                 // --- 登録済み表示 ---
                 if (isRegistered) ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTempleAvatar(),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start, // ← 左寄せ
-                          children: [
-                            // お寺の名前（左寄せ）
-                            Text(
-                              _templeName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.left,
-                            ),
-
-                            // 宗派（あれば表示）
-                            if (_sect.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                _sect,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black87,
-                                ),
-                                textAlign: TextAlign.left,
-                              ),
-                            ],
-
-                            // 住所（あれば表示）
-                            if (_address.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                _address,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.black87,
-                                  height: 1.3,
-                                ),
-                                textAlign: TextAlign.left,
-                              ),
-                            ],
-                          ],
+                  // お寺名：白い角丸ボタン風
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 4,
+                          offset: const Offset(1, 2),
                         ),
+                      ],
+                    ),
+                    child: Text(
+                      _templeName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
+                    ),
                   ),
+                  if (_sect.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _sect,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
+                  ],
+                  // 住所は非表示
                   const Spacer(),
                   const Align(
                     alignment: Alignment.bottomRight,
@@ -956,11 +956,11 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
     await prefs.setString(widget.keys.emailKey, _emailController.text.trim());
 
     if (!mounted) return;
-    Navigator.of(context).pop(true); // 更新あり
+    Navigator.of(context).pop(true);
   }
 
   void _cancel() {
-    Navigator.of(context).pop(false); // 変更なし
+    Navigator.of(context).pop(false);
   }
 
   @override
@@ -1087,7 +1087,7 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
 }
 
 /// =======================
-/// 下段 右：年回表パネル（タップでウィンドウ）
+/// 下段 右：年回表パネル（背景画像）
 /// =======================
 class NenkiPanel extends StatefulWidget {
   const NenkiPanel({super.key});
@@ -1103,7 +1103,8 @@ class _NenkiPanelState extends State<NenkiPanel> {
       barrierDismissible: true,
       barrierColor: Colors.black54,
       builder: (context) {
-        return Center(
+        return Align(
+          alignment: const Alignment(0, -0.1), // 少し上に
           child: FractionallySizedBox(
             heightFactor: 0.6,
             widthFactor: 0.9,
@@ -1123,32 +1124,57 @@ class _NenkiPanelState extends State<NenkiPanel> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.blue.shade50,
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/news/bg_report.jpg'),
+          fit: BoxFit.fitHeight, // 縦100％、横は見切れOK
+          alignment: Alignment.center,
+        ),
+      ),
       child: InkWell(
         onTap: _openNenkiDialog,
-        child: const Padding(
-          padding: EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '年回表',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 4),
-              Text(
-                '亡くなった年から、今後の年回の年を確認できます。',
-                style: TextStyle(fontSize: 14, height: 1.5),
-              ),
-              Spacer(),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Text(
-                  'タップして年回を計算 ▶',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+        child: Container(
+          color: Colors.white.withOpacity(0.75),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 「年回表」角丸白ボタン風
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 4,
+                        offset: const Offset(1, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Text(
+                    '年回表',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                const Text(
+                  '亡くなった年から、今後の年回の年を確認できます。',
+                  style: TextStyle(fontSize: 14, height: 1.5),
+                ),
+                const Spacer(),
+                const Align(
+                  alignment: Alignment.bottomRight,
+                  child: Text(
+                    'タップして年回を計算 ▶',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1198,13 +1224,18 @@ class _NenkiDialogState extends State<_NenkiDialog> {
     for (final c in _cycles) {
       final yr = year + c - 1; // 命年＋(回忌−1)
       if (yr >= nowYear) {
-        // ★ 1回忌 → 1周忌
-        final label = (c == 1) ? '1周忌' : '${c}回忌';
-        const note = ''; // 「節目の大法要の目安」は表示しない
+        // 1回忌 → 1周忌
+        String label;
+        if (c == 1) {
+          label = '1周忌';
+        } else {
+          label = '$c回忌';
+        }
+
         rows.add(_NenkiRow(
           label: label,
           year: yr,
-          note: note,
+          note: '',
         ));
       }
     }
@@ -1261,27 +1292,26 @@ class _NenkiDialogState extends State<_NenkiDialog> {
   /// 西暦年 → 和暦表示（令和・平成・昭和・大正・明治）
   String _formatWareki(int year) {
     if (year >= 2019) {
-      final n = year - 2018; // 2019 → 1
+      final n = year - 2018;
       final y = (n == 1) ? '元' : '$n';
       return '令和$y年';
     } else if (year >= 1989) {
-      final n = year - 1988; // 1989 → 1
+      final n = year - 1988;
       final y = (n == 1) ? '元' : '$n';
       return '平成$y年';
     } else if (year >= 1926) {
-      final n = year - 1925; // 1926 → 1
+      final n = year - 1925;
       final y = (n == 1) ? '元' : '$n';
       return '昭和$y年';
     } else if (year >= 1912) {
-      final n = year - 1911; // 1912 → 1
+      final n = year - 1911;
       final y = (n == 1) ? '元' : '$n';
       return '大正$y年';
     } else if (year >= 1868) {
-      final n = year - 1867; // 1868 → 1
+      final n = year - 1867;
       final y = (n == 1) ? '元' : '$n';
       return '明治$y年';
     }
-    // それ以前は空文字（西暦のみ表示）
     return '';
   }
 
@@ -1344,11 +1374,11 @@ class _NenkiDialogState extends State<_NenkiDialog> {
             ],
           ),
           const SizedBox(height: 4),
+          // クイック入力：のラベルは削除し、ボタンだけ残す
           Wrap(
             spacing: 4,
             runSpacing: 4,
             children: [
-              const Text('クイック入力：', style: TextStyle(color: Colors.black54)),
               for (final y in quickYears)
                 OutlinedButton(
                   onPressed: () => _quickSetYear(y),
@@ -1387,7 +1417,7 @@ class _NenkiDialogState extends State<_NenkiDialog> {
               child: _rows.isEmpty
                   ? const Center(
                       child: Text(
-                        '年を入力して「計算」を押してください。',
+                        '年を入力して計算か、年のボタンを押してください。',
                         style: TextStyle(fontSize: 14),
                       ),
                     )

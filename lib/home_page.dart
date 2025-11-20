@@ -31,10 +31,6 @@ class _HomePageState extends State<HomePage> {
   // どの丸アイコンが「アクティブ（太枠）」か
   int _currentHomeIndex = -1;
 
-  // HOME丸アイコン用のPageController（スワイプ）
-  final PageController _homeIconController =
-      PageController(viewportFraction: 0.30);
-
   // エフェクト動画用
   String? _effectPath;
   VideoPlayerController? _effectController;
@@ -49,7 +45,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _effectController?.dispose();
-    _homeIconController.dispose();
     super.dispose();
   }
 
@@ -211,63 +206,65 @@ class _HomePageState extends State<HomePage> {
               for (int i = 0; i < ihaiItems.length; i++)
                 _buildIhaiWidget(context, ihaiItems[i], i, w, h),
 
-              // 5) HOMEに表示の丸型遺影（複数・センター・スワイプ・太枠）
+              // 5) HOMEに表示の丸型遺影（複数を1グループとして横中央に配置）
               if (_homePersons.isNotEmpty)
                 Positioned(
-                  top: 24,
+                  top: 16, // 位置を少し上に
                   left: 0,
                   right: 0,
                   child: SizedBox(
-                    height: 90,
-                    child: PageView.builder(
-                      controller: _homeIconController,
-                      itemCount: _homePersons.length,
-                      itemBuilder: (context, index) {
-                        final p = _homePersons[index];
-                        final bool isActive = index == _currentHomeIndex;
+                    height: 86,
+                    child: Center(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min, // グループ全体を中央寄せ
+                          children: List.generate(_homePersons.length, (index) {
+                            final p = _homePersons[index];
+                            final bool isActive = index == _currentHomeIndex;
 
-                        return Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _currentHomeIndex = index;
-                                _overlayPerson = p;
-                                _homeOverlayOpen = true;
-                              });
-                            },
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
-                              child: Container(
-                                width: 76,
-                                height: 76,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.black.withOpacity(0.25),
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: isActive ? 4.0 : 1.5,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child: Image.asset(
-                                    p.primaryPortraitPath,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.person,
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _currentHomeIndex = index;
+                                  _overlayPerson = p;
+                                  _homeOverlayOpen = true;
+                                });
+                              },
+                              child: Padding(
+                                // アイコン同士の感覚を詰める
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                child: Container(
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withOpacity(0.25),
+                                    border: Border.all(
                                       color: Colors.white,
+                                      width: isActive ? 4.0 : 1.5,
+                                    ),
+                                  ),
+                                  child: ClipOval(
+                                    child: Image.asset(
+                                      p.primaryPortraitPath,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.person,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
+                            );
+                          }),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-
               // 6) HOMEに表示の詳細オーバーレイ（タップで閉じる）
               if (_overlayPerson != null && _homeOverlayOpen)
                 Positioned.fill(
@@ -304,15 +301,14 @@ class _HomePageState extends State<HomePage> {
     double w,
     double h,
   ) {
-    final ihaiHeight = h * 0.40 * item.scale;
+    final ihaiHeight = h * 0.35 * item.scale;
 
-    // 0.0〜1.0 の正規化座標を安全にクランプ
+// 0.0〜1.0 の正規化座標を安全にクランプ
     final cx = item.centerX.clamp(0.0, 1.0);
-    final cy = item.centerY.clamp(0.0, 1.0);
+// ★ 10% 上に補正（＝中心座標を 0.10 減らす）
+    final cy = (item.centerY - 0.10).clamp(0.0, 1.0);
 
-    // Alignment を使って「中心座標」を素直に指定
-    // x: 0.0→左, 1.0→右 を -1.0〜1.0 に変換
-    // y: 0.0→上, 1.0→下  を -1.0〜1.0 に変換
+// Alignment を使って「中心座標」を素直に指定
     final alignment = Alignment(cx * 2 - 1, cy * 2 - 1);
 
     return Align(
