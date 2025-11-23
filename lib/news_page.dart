@@ -531,10 +531,10 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
       barrierColor: Colors.black54,
       builder: (context) {
         return Align(
-          alignment: const Alignment(0, -0.15), // 画面中央よりやや上に
+          alignment: Alignment.center,
           child: FractionallySizedBox(
-            heightFactor: 0.4,
-            widthFactor: 0.9,
+            heightFactor: 0.9, // 上下 5% 余白
+            widthFactor: 0.9, // 左右 5% 余白
             child: Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -784,21 +784,40 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
               children: [
                 // --- 未登録時の表示 ---
                 if (!isRegistered) ...[
-                  const Text(
-                    'お寺情報',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  // 「年回表」と同様の角丸白背景＋中央寄せ
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 4,
+                            offset: const Offset(1, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'お寺情報',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    '長押しでお寺を登録しましょう',
-                    style: TextStyle(fontSize: 14, height: 1.5),
-                  ),
-                  const Spacer(),
-                  const Align(
-                    alignment: Alignment.bottomRight,
-                    child: Text(
-                      '長押しで登録 ▶',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                  // 「長押しで登録 ▶」を縦中央・左揃え
+                  const Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '長押しで登録 ▶',
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
                     ),
                   ),
                 ],
@@ -965,92 +984,105 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('お寺の情報'),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTextField(
-                  label: 'お寺の名前',
-                  controller: _templeNameController,
-                  hint: '例）◯◯寺',
-                  isRequired: true,
-                ),
-                const SizedBox(height: 8),
-                _buildTextField(
-                  label: '宗派',
-                  controller: _sectController,
-                  hint: '例）◯◯宗◯◯派',
-                ),
-                const SizedBox(height: 8),
-                _buildTextField(
-                  label: '住所',
-                  controller: _addressController,
-                  hint: '例）〒xxx-xxxx◯◯市◯◯町',
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
-                _buildTextField(
-                  label: '電話番号',
-                  controller: _phoneController,
-                  hint: '例）xxx-xxx-xxxx',
-                  onChanged: (value) {
-                    final onlyNum = value.replaceAll(RegExp(r'[^0-9]'), '');
-                    String formatted = onlyNum;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: constraints.maxWidth * 0.9, // 左右5%余白
+              maxHeight: constraints.maxHeight * 0.9, // 上下5%余白
+            ),
+            child: AlertDialog(
+              title: const Text('お寺の情報'),
+              content: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildTextField(
+                          label: 'お寺の名前',
+                          controller: _templeNameController,
+                          hint: '例）◯◯寺',
+                          isRequired: true,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          label: '宗派',
+                          controller: _sectController,
+                          hint: '例）◯◯宗◯◯派',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          label: '住所',
+                          controller: _addressController,
+                          hint: '例）〒xxx-xxxx◯◯市◯◯町',
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          label: '電話番号',
+                          controller: _phoneController,
+                          hint: '例）xxx-xxx-xxxx',
+                          onChanged: (value) {
+                            final onlyNum =
+                                value.replaceAll(RegExp(r'[^0-9]'), '');
+                            String formatted = onlyNum;
 
-                    if (onlyNum.length > 3 && onlyNum.length <= 6) {
-                      formatted =
-                          '${onlyNum.substring(0, 3)}-${onlyNum.substring(3)}';
-                    } else if (onlyNum.length > 6) {
-                      formatted =
-                          '${onlyNum.substring(0, 3)}-${onlyNum.substring(3, 6)}-${onlyNum.substring(6)}';
-                    }
+                            if (onlyNum.length > 3 && onlyNum.length <= 6) {
+                              formatted =
+                                  '${onlyNum.substring(0, 3)}-${onlyNum.substring(3)}';
+                            } else if (onlyNum.length > 6) {
+                              formatted =
+                                  '${onlyNum.substring(0, 3)}-${onlyNum.substring(3, 6)}-${onlyNum.substring(6)}';
+                            }
 
-                    if (formatted != value) {
-                      _phoneController.value = TextEditingValue(
-                        text: formatted,
-                        selection:
-                            TextSelection.collapsed(offset: formatted.length),
-                      );
-                    }
-                  },
+                            if (formatted != value) {
+                              _phoneController.value = TextEditingValue(
+                                text: formatted,
+                                selection: TextSelection.collapsed(
+                                    offset: formatted.length),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          label: 'メールアドレス',
+                          controller: _emailController,
+                          hint: '例）example@example.com',
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'メールアドレスを入力してください';
+                            }
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                                .hasMatch(value.trim())) {
+                              return '正しい形式のメールアドレスを入力してください';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                _buildTextField(
-                  label: 'メールアドレス',
-                  controller: _emailController,
-                  hint: '例）example@example.com',
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'メールアドレスを入力してください';
-                    }
-                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                        .hasMatch(value.trim())) {
-                      return '正しい形式のメールアドレスを入力してください';
-                    }
-                    return null;
-                  },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: _saving ? null : _cancel,
+                  child: const Text('キャンセル'),
+                ),
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: const Text('保存'),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : _cancel,
-          child: const Text('キャンセル'),
-        ),
-        FilledButton(
-          onPressed: _saving ? null : _save,
-          child: const Text('保存'),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1104,10 +1136,10 @@ class _NenkiPanelState extends State<NenkiPanel> {
       barrierColor: Colors.black54,
       builder: (context) {
         return Align(
-          alignment: const Alignment(0, -0.1), // 少し上に
+          alignment: Alignment.center,
           child: FractionallySizedBox(
-            heightFactor: 0.6,
-            widthFactor: 0.9,
+            heightFactor: 0.9, // 上下5%余白
+            widthFactor: 0.9, // 左右5%余白
             child: Dialog(
               insetPadding: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
@@ -1140,37 +1172,38 @@ class _NenkiPanelState extends State<NenkiPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 「年回表」角丸白ボタン風
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 4,
-                        offset: const Offset(1, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    '年回表',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                // 「年回表」角丸白ボタン風（横中央）
+                Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 4,
+                          offset: const Offset(1, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      '年回表',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  '亡くなった年から、今後の年回の年を確認できます。',
-                  style: TextStyle(fontSize: 14, height: 1.5),
-                ),
-                const Spacer(),
-                const Align(
-                  alignment: Alignment.bottomRight,
-                  child: Text(
-                    'タップして年回を計算 ▶',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                // 「タップして年回を計算 ▶」を縦中央・左揃え
+                const Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'タップして年回を計算 ▶',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
                   ),
                 ),
               ],
@@ -1184,7 +1217,7 @@ class _NenkiPanelState extends State<NenkiPanel> {
 
 /// 年回表の計算ウィンドウ本体
 class _NenkiDialog extends StatefulWidget {
-  const _NenkiDialog({Key? key}) : super(key: key);
+  const _NenkiDialog({super.key});
 
   @override
   State<_NenkiDialog> createState() => _NenkiDialogState();
@@ -1374,7 +1407,7 @@ class _NenkiDialogState extends State<_NenkiDialog> {
             ],
           ),
           const SizedBox(height: 4),
-          // クイック入力：のラベルは削除し、ボタンだけ残す
+          // クイック入力：ラベル削除、ボタンのみ
           Wrap(
             spacing: 4,
             runSpacing: 4,
