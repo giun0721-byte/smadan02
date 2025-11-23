@@ -117,40 +117,26 @@ class _NewsPageState extends State<NewsPage> {
           SafeArea(
             child: _error != null
                 ? _buildError()
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isNarrow = constraints.maxWidth < 700;
-
-                      return Column(
-                        children: [
-                          // 上 60%：お知らせ一覧のみ
-                          Expanded(
-                            flex: 6,
-                            child: _buildTopFrame(),
-                          ),
-                          const Divider(height: 1),
-                          // 下 40%：左 お寺情報 / 右 年回表
-                          Expanded(
-                            flex: 4,
-                            child: isNarrow
-                                ? const Column(
-                                    children: [
-                                      Expanded(child: TempleInfoPanel()),
-                                      Divider(height: 1),
-                                      Expanded(child: NenkiPanel()),
-                                    ],
-                                  )
-                                : const Row(
-                                    children: [
-                                      Expanded(child: TempleInfoPanel()),
-                                      VerticalDivider(width: 1),
-                                      Expanded(child: NenkiPanel()),
-                                    ],
-                                  ),
-                          ),
-                        ],
-                      );
-                    },
+                : Column(
+                    children: [
+                      // 上 70%：お知らせ一覧
+                      Expanded(
+                        flex: 7,
+                        child: _buildTopFrame(),
+                      ),
+                      const Divider(height: 1),
+                      // 下 30%：左 お寺情報 / 右 年回表（スマホでも常に左右分割）
+                      Expanded(
+                        flex: 3,
+                        child: const Row(
+                          children: [
+                            Expanded(child: TempleInfoPanel()),
+                            VerticalDivider(width: 1),
+                            Expanded(child: NenkiPanel()),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
           ),
           if (_openedArticle != null) _buildArticleOverlay(),
@@ -530,141 +516,148 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
       barrierDismissible: true,
       barrierColor: Colors.black54,
       builder: (context) {
-        return Align(
-          alignment: Alignment.center,
-          child: FractionallySizedBox(
-            heightFactor: 0.9, // 上下 5% 余白
-            widthFactor: 0.9, // 左右 5% 余白
-            child: Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final h = constraints.maxHeight;
+            final w = constraints.maxWidth;
+            return Padding(
+              padding: EdgeInsets.only(
+                top: h * 0.05,
+                bottom: h * 0.05,
+                left: w * 0.05,
+                right: w * 0.05,
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // お寺名：角丸白ボタン風
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 4,
-                            offset: const Offset(1, 2),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // お寺名：角丸白ボタン風
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 4,
+                              offset: const Offset(1, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
 
-                    if (sect.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        sect,
-                        style: const TextStyle(fontSize: 14),
+                      if (sect.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          sect,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+
+                      if (address.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          address,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      // ★ お年寄り向けの柔らかい色のボタン
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFF3C4), // クリーム色
+                            foregroundColor: const Color(0xFF5D4037), // 濃い茶色
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _callTemple();
+                          },
+                          icon: const Icon(Icons.phone, size: 22),
+                          label: const Text(
+                            '電話する',
+                            style: TextStyle(fontSize: 17),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFF3C4),
+                            foregroundColor: const Color(0xFF5D4037),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _mailTemple();
+                          },
+                          icon: const Icon(Icons.mail, size: 22),
+                          label: const Text(
+                            'メールする',
+                            style: TextStyle(fontSize: 17),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFF3C4),
+                            foregroundColor: const Color(0xFF5D4037),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _goTemple();
+                          },
+                          icon: const Icon(Icons.map, size: 22),
+                          label: const Text(
+                            '行ってみる',
+                            style: TextStyle(fontSize: 17),
+                          ),
+                        ),
                       ),
                     ],
-
-                    if (address.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        address,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ],
-
-                    const SizedBox(height: 16),
-
-                    // ★ お年寄り向けの柔らかい色のボタン
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFF3C4), // クリーム色
-                          foregroundColor: const Color(0xFF5D4037), // 濃い茶色
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _callTemple();
-                        },
-                        icon: const Icon(Icons.phone, size: 22),
-                        label: const Text(
-                          '電話する',
-                          style: TextStyle(fontSize: 17),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFF3C4),
-                          foregroundColor: const Color(0xFF5D4037),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _mailTemple();
-                        },
-                        icon: const Icon(Icons.mail, size: 22),
-                        label: const Text(
-                          'メールする',
-                          style: TextStyle(fontSize: 17),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFF3C4),
-                          foregroundColor: const Color(0xFF5D4037),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _goTemple();
-                        },
-                        icon: const Icon(Icons.map, size: 22),
-                        label: const Text(
-                          '行ってみる',
-                          style: TextStyle(fontSize: 17),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -784,7 +777,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
               children: [
                 // --- 未登録時の表示 ---
                 if (!isRegistered) ...[
-                  // 「年回表」と同様の角丸白背景＋中央寄せ
+                  // 角丸白背景＋中央寄せ
                   Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -824,26 +817,28 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
 
                 // --- 登録済み表示 ---
                 if (isRegistered) ...[
-                  // お寺名：白い角丸ボタン風
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 4,
-                          offset: const Offset(1, 2),
+                  // お寺名：白い角丸ボタン風を横中央へ
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 4,
+                            offset: const Offset(1, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        _templeName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      _templeName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -859,12 +854,15 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                     ),
                   ],
                   // 住所は非表示
-                  const Spacer(),
-                  const Align(
-                    alignment: Alignment.bottomRight,
-                    child: Text(
-                      'タップで連絡／長押しで登録 ▶',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
+
+                  // 「タップで連絡／長押しで登録 ▶」を縦中央・左揃え
+                  const Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'タップで連絡／長押しで登録 ▶',
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
                     ),
                   ),
                 ],
@@ -959,6 +957,26 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
   }
 
   Future<void> _save() async {
+    // どこか1項目でも入力されているかチェック
+    final name = _templeNameController.text.trim();
+    final sect = _sectController.text.trim();
+    final addr = _addressController.text.trim();
+    final phone = _phoneController.text.trim();
+    final email = _emailController.text.trim();
+
+    if (name.isEmpty &&
+        sect.isEmpty &&
+        addr.isEmpty &&
+        phone.isEmpty &&
+        email.isEmpty) {
+      // 全部空なら保存させない
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('いずれか1項目以上入力してください。')),
+      );
+      return;
+    }
+
+    // 入力が1項目以上あれば、フォーマットだけチェック
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -984,102 +1002,106 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // 画面全体に対して：上5％・左右7％・下10％の余白で AlertDialog を表示
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: constraints.maxWidth * 0.9, // 左右5%余白
-              maxHeight: constraints.maxHeight * 0.9, // 上下5%余白
-            ),
-            child: AlertDialog(
-              title: const Text('お寺の情報'),
-              content: SizedBox(
-                width: 400,
-                child: SingleChildScrollView(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildTextField(
-                          label: 'お寺の名前',
-                          controller: _templeNameController,
-                          hint: '例）◯◯寺',
-                          isRequired: true,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          label: '宗派',
-                          controller: _sectController,
-                          hint: '例）◯◯宗◯◯派',
-                        ),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          label: '住所',
-                          controller: _addressController,
-                          hint: '例）〒xxx-xxxx◯◯市◯◯町',
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          label: '電話番号',
-                          controller: _phoneController,
-                          hint: '例）xxx-xxx-xxxx',
-                          onChanged: (value) {
-                            final onlyNum =
-                                value.replaceAll(RegExp(r'[^0-9]'), '');
-                            String formatted = onlyNum;
+        final h = constraints.maxHeight;
+        final w = constraints.maxWidth;
+        return Padding(
+          padding: EdgeInsets.only(
+            top: h * 0.05,
+            bottom: h * 0.10,
+            left: w * 0.07,
+            right: w * 0.07,
+          ),
+          child: AlertDialog(
+            title: const Text('お寺の情報'),
+            content: SizedBox(
+              width: 400,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildTextField(
+                        label: 'お寺の名前',
+                        controller: _templeNameController,
+                        hint: '例）◯◯寺',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        label: '宗派',
+                        controller: _sectController,
+                        hint: '例）◯◯宗◯◯派',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        label: '住所',
+                        controller: _addressController,
+                        hint: '例）〒xxx-xxxx◯◯市◯◯町',
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        label: '電話番号',
+                        controller: _phoneController,
+                        hint: '例）xxx-xxx-xxxx',
+                        onChanged: (value) {
+                          final onlyNum =
+                              value.replaceAll(RegExp(r'[^0-9]'), '');
+                          String formatted = onlyNum;
 
-                            if (onlyNum.length > 3 && onlyNum.length <= 6) {
-                              formatted =
-                                  '${onlyNum.substring(0, 3)}-${onlyNum.substring(3)}';
-                            } else if (onlyNum.length > 6) {
-                              formatted =
-                                  '${onlyNum.substring(0, 3)}-${onlyNum.substring(3, 6)}-${onlyNum.substring(6)}';
-                            }
+                          if (onlyNum.length > 3 && onlyNum.length <= 6) {
+                            formatted =
+                                '${onlyNum.substring(0, 3)}-${onlyNum.substring(3)}';
+                          } else if (onlyNum.length > 6) {
+                            formatted =
+                                '${onlyNum.substring(0, 3)}-${onlyNum.substring(3, 6)}-${onlyNum.substring(6)}';
+                          }
 
-                            if (formatted != value) {
-                              _phoneController.value = TextEditingValue(
-                                text: formatted,
-                                selection: TextSelection.collapsed(
-                                    offset: formatted.length),
-                              );
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          label: 'メールアドレス',
-                          controller: _emailController,
-                          hint: '例）example@example.com',
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'メールアドレスを入力してください';
-                            }
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                                .hasMatch(value.trim())) {
-                              return '正しい形式のメールアドレスを入力してください';
-                            }
+                          if (formatted != value) {
+                            _phoneController.value = TextEditingValue(
+                              text: formatted,
+                              selection: TextSelection.collapsed(
+                                  offset: formatted.length),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        label: 'メールアドレス',
+                        controller: _emailController,
+                        hint: '例）example@example.com',
+                        // 入力されているときだけ形式チェックを行う
+                        validator: (value) {
+                          final text = value?.trim() ?? '';
+                          if (text.isEmpty) {
+                            // 未入力はOK（必須ではない）
                             return null;
-                          },
-                        ),
-                      ],
-                    ),
+                          }
+                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(text)) {
+                            return '正しい形式のメールアドレスを入力してください';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: _saving ? null : _cancel,
-                  child: const Text('キャンセル'),
-                ),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: const Text('保存'),
-                ),
-              ],
             ),
+            actions: [
+              TextButton(
+                onPressed: _saving ? null : _cancel,
+                child: const Text('キャンセル'),
+              ),
+              FilledButton(
+                onPressed: _saving ? null : _save,
+                child: const Text('保存'),
+              ),
+            ],
           ),
         );
       },
@@ -1090,7 +1112,6 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
     required String label,
     required TextEditingController controller,
     String? hint,
-    bool isRequired = false,
     int maxLines = 1,
     void Function(String)? onChanged,
     String? Function(String?)? validator,
@@ -1105,15 +1126,8 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
         border: const OutlineInputBorder(),
       ),
       onChanged: onChanged,
-      validator: validator ??
-          (isRequired
-              ? (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return '$label を入力してください。';
-                  }
-                  return null;
-                }
-              : null),
+      // デフォルトでは必須チェックは行わない（任意入力）
+      validator: validator,
     );
   }
 }
@@ -1135,19 +1149,27 @@ class _NenkiPanelState extends State<NenkiPanel> {
       barrierDismissible: true,
       barrierColor: Colors.black54,
       builder: (context) {
-        return Align(
-          alignment: Alignment.center,
-          child: FractionallySizedBox(
-            heightFactor: 0.9, // 上下5%余白
-            widthFactor: 0.9, // 左右5%余白
-            child: Dialog(
-              insetPadding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final h = constraints.maxHeight;
+            final w = constraints.maxWidth;
+            return Padding(
+              // 上5％・左右7％・下10％の余白
+              padding: EdgeInsets.only(
+                top: h * 0.05,
+                bottom: h * 0.20,
+                left: w * 0.07,
+                right: w * 0.07,
               ),
-              child: const _NenkiDialog(),
-            ),
-          ),
+              child: Dialog(
+                insetPadding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const _NenkiDialog(),
+              ),
+            );
+          },
         );
       },
     );
@@ -1380,7 +1402,7 @@ class _NenkiDialogState extends State<_NenkiDialog> {
           ),
           const SizedBox(height: 4),
           const Text(
-            '亡くなった年を西暦で入力してください。',
+            '亡くなった年を入力',
             style: TextStyle(fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 8),
