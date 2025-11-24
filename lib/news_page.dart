@@ -5,6 +5,13 @@ import 'package:flutter/services.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// SharedPreferences キー（菩提寺情報）
+const String kTempleNameKey = 'temple_name';
+const String kTempleSectKey = 'temple_sect';
+const String kTempleAddressKey = 'temple_address';
+const String kTemplePhoneKey = 'temple_phone';
+const String kTempleEmailKey = 'temple_email';
+
 /// NEWS 1件分
 class NewsArticle {
   final String title;
@@ -49,7 +56,15 @@ class _NewsPageState extends State<NewsPage> {
   bool _loading = true;
   String? _error;
 
-  NewsArticle? _openedArticle; // ウィンドウ表示中の記事
+  // 下からシート表示用
+  NewsArticle? _openedArticle;
+  bool _showTempleEditSheet = false;
+  bool _showTempleActionSheet = false;
+  bool _showNenkiSheet = false;
+
+  // 菩提寺パネルへの参照（保存後に再読込させる）
+  final GlobalKey<_TempleInfoPanelState> _templePanelKey =
+      GlobalKey<_TempleInfoPanelState>();
 
   @override
   void initState() {
@@ -97,15 +112,64 @@ class _NewsPageState extends State<NewsPage> {
     }
   }
 
+  /// 個人ページと同イメージ：News記事の下からシート
   void _openArticleWindow(NewsArticle article) {
     setState(() {
       _openedArticle = article;
+      _showTempleEditSheet = false;
+      _showTempleActionSheet = false;
+      _showNenkiSheet = false;
     });
   }
 
   void _closeArticleWindow() {
     setState(() {
       _openedArticle = null;
+    });
+  }
+
+  void _openTempleEditSheet() {
+    setState(() {
+      _openedArticle = null;
+      _showTempleEditSheet = true;
+      _showTempleActionSheet = false;
+      _showNenkiSheet = false;
+    });
+  }
+
+  void _closeTempleEditSheet() {
+    setState(() {
+      _showTempleEditSheet = false;
+    });
+  }
+
+  void _openTempleActionSheet() {
+    setState(() {
+      _openedArticle = null;
+      _showTempleEditSheet = false;
+      _showTempleActionSheet = true;
+      _showNenkiSheet = false;
+    });
+  }
+
+  void _closeTempleActionSheet() {
+    setState(() {
+      _showTempleActionSheet = false;
+    });
+  }
+
+  void _openNenkiSheet() {
+    setState(() {
+      _openedArticle = null;
+      _showTempleEditSheet = false;
+      _showTempleActionSheet = false;
+      _showNenkiSheet = true;
+    });
+  }
+
+  void _closeNenkiSheet() {
+    setState(() {
+      _showNenkiSheet = false;
     });
   }
 
@@ -128,11 +192,21 @@ class _NewsPageState extends State<NewsPage> {
                       // 下 30%：左 お寺情報 / 右 年回表（スマホでも常に左右分割）
                       Expanded(
                         flex: 3,
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Expanded(child: TempleInfoPanel()),
-                            VerticalDivider(width: 1),
-                            Expanded(child: NenkiPanel()),
+                            Expanded(
+                              child: TempleInfoPanel(
+                                key: _templePanelKey,
+                                onEditRequested: _openTempleEditSheet,
+                                onActionRequested: _openTempleActionSheet,
+                              ),
+                            ),
+                            const VerticalDivider(width: 1),
+                            Expanded(
+                              child: NenkiPanel(
+                                onOpenSheet: _openNenkiSheet,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -140,6 +214,9 @@ class _NewsPageState extends State<NewsPage> {
                   ),
           ),
           if (_openedArticle != null) _buildArticleOverlay(),
+          if (_showTempleEditSheet) _buildTempleEditOverlay(),
+          if (_showTempleActionSheet) _buildTempleActionOverlay(),
+          if (_showNenkiSheet) _buildNenkiOverlay(),
         ],
       ),
     );
@@ -333,94 +410,71 @@ class _NewsPageState extends State<NewsPage> {
     );
   }
 
-  /// 記事の内容を表示するオーバーレイ（下メニューが隠れないサイズ）
+  /// 記事の下からシート表示（メニューにはかぶらない）
   Widget _buildArticleOverlay() {
     final article = _openedArticle!;
     return Positioned.fill(
       child: GestureDetector(
+        // 黒背景タップで閉じる
         onTap: _closeArticleWindow,
         child: Container(
           color: Colors.black54,
-          alignment: Alignment.center,
+          child: GestureDetector(
+            // シート本体タップでは背景タップ扱いにならないように
+            onTap: () {},
+            // 下向きスワイプで閉じる
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity > 200) {
+                _closeArticleWindow();
+              }
+            },
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: _BottomSheetFrame(
+                child: _ArticleSheetContent(article: article),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 菩提寺編集シート
+  Widget _buildTempleEditOverlay() {
+    final panelState = _templePanelKey.currentState;
+    final initial = TempleInfoData(
+      templeName: panelState?.templeName ?? '',
+      sect: panelState?.sect ?? '',
+      address: panelState?.address ?? '',
+      phone: panelState?.phone ?? '',
+      email: panelState?.email ?? '',
+    );
+
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _closeTempleEditSheet,
+        child: Container(
+          color: Colors.black54,
           child: GestureDetector(
             onTap: () {},
-            child: FractionallySizedBox(
-              heightFactor: 0.7,
-              widthFactor: 0.9,
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ヘッダ
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (article.dateLabel.isNotEmpty)
-                                  Text(
-                                    article.dateLabel,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  article.title,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: _closeArticleWindow,
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    if (article.thumbnail != null &&
-                        article.thumbnail!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              'assets/news/${article.thumbnail}',
-                              height: 140,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                        child: SingleChildScrollView(
-                          child: Text(
-                            article.body,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              height: 1.6,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity > 200) {
+                _closeTempleEditSheet();
+              }
+            },
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: _BottomSheetFrame(
+                child: TempleInfoSheet(
+                  initialData: initial,
+                  onSaved: () async {
+                    await panelState?.refresh();
+                    _closeTempleEditSheet();
+                  },
+                  onCanceled: _closeTempleEditSheet,
                 ),
               ),
             ),
@@ -429,114 +483,41 @@ class _NewsPageState extends State<NewsPage> {
       ),
     );
   }
-}
 
-/// =======================
-/// 下段 左：お寺情報パネル（背景画像）
-/// =======================
-class TempleInfoPanel extends StatefulWidget {
-  const TempleInfoPanel({super.key});
-
-  @override
-  State<TempleInfoPanel> createState() => _TempleInfoPanelState();
-}
-
-class _TempleInfoPanelState extends State<TempleInfoPanel> {
-  String _templeName = '';
-  String _sect = '';
-  String _phone = '';
-  String _email = '';
-  String _address = '';
-  bool _loading = true;
-
-  static const _keyTempleName = 'temple_name';
-  static const _keySect = 'temple_sect';
-  static const _keyAddress = 'temple_address';
-  static const _keyPhone = 'temple_phone';
-  static const _keyEmail = 'temple_email';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSummary();
-  }
-
-  Future<void> _loadSummary() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _templeName = prefs.getString(_keyTempleName) ?? '';
-      _sect = prefs.getString(_keySect) ?? '';
-      _phone = prefs.getString(_keyPhone) ?? '';
-      _email = prefs.getString(_keyEmail) ?? '';
-      _address = prefs.getString(_keyAddress) ?? '';
-      _loading = false;
-    });
-  }
-
-  /// ロングタップで登録ウィンドウ（編集）
-  Future<void> _openEditDialog() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final initial = TempleInfoData(
-      templeName: prefs.getString(_keyTempleName) ?? '',
-      sect: prefs.getString(_keySect) ?? '',
-      address: prefs.getString(_keyAddress) ?? '',
-      phone: prefs.getString(_keyPhone) ?? '',
-      email: prefs.getString(_keyEmail) ?? '',
-    );
-
-    final updated = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => TempleInfoDialog(
-        initialData: initial,
-        keys: const TempleInfoKeys(
-          templeNameKey: _keyTempleName,
-          sectKey: _keySect,
-          addressKey: _keyAddress,
-          phoneKey: _keyPhone,
-          emailKey: _keyEmail,
-        ),
-      ),
-    );
-
-    if (updated == true) {
-      await _loadSummary();
+  /// 菩提寺アクションシート（電話／メール／経路）
+  Widget _buildTempleActionOverlay() {
+    final panelState = _templePanelKey.currentState;
+    if (panelState == null) {
+      return const SizedBox.shrink();
     }
-  }
 
-  /// タップで「電話する／メールする／行ってみる」メニュー
-  Future<void> _openActionDialog() async {
-    final name = _templeName.isNotEmpty ? _templeName : 'お寺';
-    final sect = _sect.isNotEmpty ? _sect : '';
-    final address = _address.isNotEmpty ? _address : '';
+    final name =
+        panelState.templeName.isNotEmpty ? panelState.templeName : 'お寺';
+    final sect = panelState.sect;
+    final address = panelState.address;
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      builder: (context) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final h = constraints.maxHeight;
-            final w = constraints.maxWidth;
-            return Padding(
-              padding: EdgeInsets.only(
-                top: h * 0.05,
-                bottom: h * 0.05,
-                left: w * 0.05,
-                right: w * 0.05,
-              ),
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _closeTempleActionSheet,
+        child: Container(
+          color: Colors.black54,
+          child: GestureDetector(
+            onTap: () {},
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity > 200) {
+                _closeTempleActionSheet();
+              }
+            },
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: _BottomSheetFrame(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // お寺名：角丸白ボタン風
+                      // お寺名 pill
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -559,7 +540,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                           ),
                         ),
                       ),
-
                       if (sect.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -567,7 +547,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                           style: const TextStyle(fontSize: 14),
                         ),
                       ],
-
                       if (address.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
@@ -575,35 +554,35 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                           style: const TextStyle(fontSize: 14),
                         ),
                       ],
-
                       const SizedBox(height: 16),
 
-                      // ★ お年寄り向けの柔らかい色のボタン
+                      // 電話ボタン
                       SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFF3C4), // クリーム色
-                            foregroundColor: const Color(0xFF5D4037), // 濃い茶色
+                            backgroundColor: const Color(0xFFFFF3C4),
+                            foregroundColor: const Color(0xFF5D4037),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                           onPressed: () {
-                            Navigator.of(context).pop();
-                            _callTemple();
+                            _closeTempleActionSheet();
+                            panelState.callTemple();
                           },
                           icon: const Icon(Icons.phone, size: 22),
                           label: const Text(
-                            '電話する',
+                            '電話',
                             style: TextStyle(fontSize: 17),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
+                      // メールボタン
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -617,18 +596,19 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                             ),
                           ),
                           onPressed: () {
-                            Navigator.of(context).pop();
-                            _mailTemple();
+                            _closeTempleActionSheet();
+                            panelState.mailTemple();
                           },
                           icon: const Icon(Icons.mail, size: 22),
                           label: const Text(
-                            'メールする',
+                            'メール',
                             style: TextStyle(fontSize: 17),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
+                      // 経路ボタン
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -642,43 +622,235 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                             ),
                           ),
                           onPressed: () {
-                            Navigator.of(context).pop();
-                            _goTemple();
+                            _closeTempleActionSheet();
+                            panelState.goTemple();
                           },
                           icon: const Icon(Icons.map, size: 22),
                           label: const Text(
-                            '行ってみる',
+                            '経路',
                             style: TextStyle(fontSize: 17),
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
                     ],
                   ),
                 ),
               ),
-            );
-          },
-        );
-      },
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  Future<void> _callTemple() async {
+  /// 年回表シート
+  Widget _buildNenkiOverlay() {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _closeNenkiSheet,
+        child: Container(
+          color: Colors.black54,
+          child: GestureDetector(
+            onTap: () {},
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity > 200) {
+                _closeNenkiSheet();
+              }
+            },
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: const _BottomSheetFrame(
+                child: _NenkiSheet(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 記事詳細シートの中身
+class _ArticleSheetContent extends StatelessWidget {
+  final NewsArticle article;
+
+  const _ArticleSheetContent({required this.article});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasThumb =
+        (article.thumbnail != null && article.thumbnail!.isNotEmpty);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (article.dateLabel.isNotEmpty) ...[
+            Text(
+              article.dateLabel,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+          Text(
+            article.title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (hasThumb) ...[
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/news/${article.thumbnail}',
+                  height: 160,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          Expanded(
+            child: SingleChildScrollView(
+              child: Text(
+                article.body,
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 1.6,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 共通の下からシート枠（個人ページ風）
+class _BottomSheetFrame extends StatelessWidget {
+  final Widget child;
+
+  const _BottomSheetFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final height = media.size.height * 0.8; // 全体の約8割（必要に応じて微調整）
+
+    return Container(
+      height: height,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          // 上部のつまみ
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
+/// =======================
+/// 下段 左：お寺情報パネル
+/// =======================
+class TempleInfoPanel extends StatefulWidget {
+  final VoidCallback onEditRequested;
+  final VoidCallback onActionRequested;
+
+  const TempleInfoPanel({
+    super.key,
+    required this.onEditRequested,
+    required this.onActionRequested,
+  });
+
+  @override
+  State<TempleInfoPanel> createState() => _TempleInfoPanelState();
+}
+
+class _TempleInfoPanelState extends State<TempleInfoPanel> {
+  String _templeName = '';
+  String _sect = '';
+  String _phone = '';
+  String _email = '';
+  String _address = '';
+  bool _loading = true;
+
+  // 外から参照するための getter
+  String get templeName => _templeName;
+  String get sect => _sect;
+  String get phone => _phone;
+  String get email => _email;
+  String get address => _address;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _templeName = prefs.getString(kTempleNameKey) ?? '';
+      _sect = prefs.getString(kTempleSectKey) ?? '';
+      _phone = prefs.getString(kTemplePhoneKey) ?? '';
+      _email = prefs.getString(kTempleEmailKey) ?? '';
+      _address = prefs.getString(kTempleAddressKey) ?? '';
+      _loading = false;
+    });
+  }
+
+  /// NewsPage 側から再読込させるための公開メソッド
+  Future<void> refresh() => _loadSummary();
+
+  // 以下、電話／メール／経路を NEWS ページから呼べるよう公開メソッドにする
+  Future<void> callTemple() async {
     if (_phone.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('電話番号が登録されていません。')),
       );
       return;
     }
-    final uri = Uri(scheme: 'tel', path: _phone.trim());
-    if (!await launchUrl(uri)) {
+    final uri = Uri.parse('tel:${_phone.trim()}');
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('電話アプリを開けませんでした。')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('電話アプリを開けませんでした。')),
+        const SnackBar(content: Text('電話アプリの起動中にエラーが発生しました。')),
       );
     }
   }
 
-  Future<void> _mailTemple() async {
+  Future<void> mailTemple() async {
     if (_email.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('メールアドレスが登録されていません。')),
@@ -689,14 +861,22 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
       scheme: 'mailto',
       path: _email.trim(),
     );
-    if (!await launchUrl(uri)) {
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('メールアプリを開けませんでした。')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('メールアプリを開けませんでした。')),
+        const SnackBar(content: Text('メールアプリの起動中にエラーが発生しました。')),
       );
     }
   }
 
-  Future<void> _goTemple() async {
+  Future<void> goTemple() async {
     if (_address.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('住所が登録されていません。')),
@@ -706,9 +886,17 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
     final encoded = Uri.encodeComponent(_address.trim());
     final uri =
         Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded');
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Googleマップを開けませんでした。')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Googleマップを開けませんでした。')),
+        const SnackBar(content: Text('地図アプリの起動中にエラーが発生しました。')),
       );
     }
   }
@@ -766,10 +954,11 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
         ),
       ),
       child: InkWell(
-        onTap: isRegistered ? _openActionDialog : null,
-        onLongPress: _openEditDialog,
+        onTap: isRegistered ? widget.onActionRequested : null,
+        onLongPress: widget.onEditRequested,
         child: Container(
-          color: Colors.white.withOpacity(0.75),
+          // 背景の白を少し薄く
+          color: Colors.white.withOpacity(0.60),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -777,7 +966,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
               children: [
                 // --- 未登録時の表示 ---
                 if (!isRegistered) ...[
-                  // 角丸白背景＋中央寄せ
                   Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -803,7 +991,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // 「長押しで登録 ▶」を縦中央・左揃え
                   const Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
@@ -817,7 +1004,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
 
                 // --- 登録済み表示 ---
                 if (isRegistered) ...[
-                  // お寺名：白い角丸ボタン風を横中央へ
                   Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -853,9 +1039,6 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                       textAlign: TextAlign.left,
                     ),
                   ],
-                  // 住所は非表示
-
-                  // 「タップで連絡／長押しで登録 ▶」を縦中央・左揃え
                   const Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
@@ -875,7 +1058,7 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
   }
 }
 
-/// 菩提寺情報をダイアログで編集するためのデータクラス
+/// 菩提寺情報を編集するためのデータクラス
 class TempleInfoData {
   final String templeName;
   final String sect;
@@ -892,38 +1075,24 @@ class TempleInfoData {
   });
 }
 
-class TempleInfoKeys {
-  final String templeNameKey;
-  final String sectKey;
-  final String addressKey;
-  final String phoneKey;
-  final String emailKey;
-
-  const TempleInfoKeys({
-    required this.templeNameKey,
-    required this.sectKey,
-    required this.addressKey,
-    required this.phoneKey,
-    required this.emailKey,
-  });
-}
-
-/// 菩提寺情報登録ウィンドウ（ダイアログ）
-class TempleInfoDialog extends StatefulWidget {
+/// 菩提寺情報登録シート（ボトムシートの中身）
+class TempleInfoSheet extends StatefulWidget {
   final TempleInfoData initialData;
-  final TempleInfoKeys keys;
+  final Future<void> Function()? onSaved;
+  final VoidCallback? onCanceled;
 
-  const TempleInfoDialog({
+  const TempleInfoSheet({
     super.key,
     required this.initialData,
-    required this.keys,
+    this.onSaved,
+    this.onCanceled,
   });
 
   @override
-  State<TempleInfoDialog> createState() => _TempleInfoDialogState();
+  State<TempleInfoSheet> createState() => _TempleInfoSheetState();
 }
 
-class _TempleInfoDialogState extends State<TempleInfoDialog> {
+class _TempleInfoSheetState extends State<TempleInfoSheet> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _templeNameController;
@@ -957,7 +1126,6 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
   }
 
   Future<void> _save() async {
-    // どこか1項目でも入力されているかチェック
     final name = _templeNameController.text.trim();
     final sect = _sectController.text.trim();
     final addr = _addressController.text.trim();
@@ -969,14 +1137,12 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
         addr.isEmpty &&
         phone.isEmpty &&
         email.isEmpty) {
-      // 全部空なら保存させない
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('いずれか1項目以上入力してください。')),
       );
       return;
     }
 
-    // 入力が1項目以上あれば、フォーマットだけチェック
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -984,127 +1150,134 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
     });
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        widget.keys.templeNameKey, _templeNameController.text.trim());
-    await prefs.setString(widget.keys.sectKey, _sectController.text.trim());
-    await prefs.setString(
-        widget.keys.addressKey, _addressController.text.trim());
-    await prefs.setString(widget.keys.phoneKey, _phoneController.text.trim());
-    await prefs.setString(widget.keys.emailKey, _emailController.text.trim());
+    await prefs.setString(kTempleNameKey, name);
+    await prefs.setString(kTempleSectKey, sect);
+    await prefs.setString(kTempleAddressKey, addr);
+    await prefs.setString(kTemplePhoneKey, phone);
+    await prefs.setString(kTempleEmailKey, email);
 
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+    if (widget.onSaved != null) {
+      await widget.onSaved!();
+    }
   }
 
   void _cancel() {
-    Navigator.of(context).pop(false);
+    widget.onCanceled?.call();
+  }
+
+  void _clear() {
+    _templeNameController.clear();
+    _sectController.clear();
+    _addressController.clear();
+    _phoneController.clear();
+    _emailController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
-    // 画面全体に対して：上5％・左右7％・下10％の余白で AlertDialog を表示
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final h = constraints.maxHeight;
-        final w = constraints.maxWidth;
-        return Padding(
-          padding: EdgeInsets.only(
-            top: h * 0.05,
-            bottom: h * 0.10,
-            left: w * 0.07,
-            right: w * 0.07,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'お寺の情報',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          child: AlertDialog(
-            title: const Text('お寺の情報'),
-            content: SizedBox(
-              width: 400,
-              child: SingleChildScrollView(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildTextField(
-                        label: 'お寺の名前',
-                        controller: _templeNameController,
-                        hint: '例）◯◯寺',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildTextField(
-                        label: '宗派',
-                        controller: _sectController,
-                        hint: '例）◯◯宗◯◯派',
-                      ),
-                      const SizedBox(height: 8),
-                      _buildTextField(
-                        label: '住所',
-                        controller: _addressController,
-                        hint: '例）〒xxx-xxxx◯◯市◯◯町',
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildTextField(
-                        label: '電話番号',
-                        controller: _phoneController,
-                        hint: '例）xxx-xxx-xxxx',
-                        onChanged: (value) {
-                          final onlyNum =
-                              value.replaceAll(RegExp(r'[^0-9]'), '');
-                          String formatted = onlyNum;
+          const SizedBox(height: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildTextField(
+                      label: 'お寺の名前',
+                      controller: _templeNameController,
+                      hint: '例）◯◯寺',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTextField(
+                      label: '宗派',
+                      controller: _sectController,
+                      hint: '例）◯◯宗◯◯派',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTextField(
+                      label: '住所',
+                      controller: _addressController,
+                      hint: '例）〒xxx-xxxx◯◯市◯◯町',
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTextField(
+                      label: '電話番号',
+                      controller: _phoneController,
+                      hint: '例）xxx-xxx-xxxx',
+                      onChanged: (value) {
+                        final onlyNum = value.replaceAll(RegExp(r'[^0-9]'), '');
+                        String formatted = onlyNum;
 
-                          if (onlyNum.length > 3 && onlyNum.length <= 6) {
-                            formatted =
-                                '${onlyNum.substring(0, 3)}-${onlyNum.substring(3)}';
-                          } else if (onlyNum.length > 6) {
-                            formatted =
-                                '${onlyNum.substring(0, 3)}-${onlyNum.substring(3, 6)}-${onlyNum.substring(6)}';
-                          }
+                        if (onlyNum.length > 3 && onlyNum.length <= 6) {
+                          formatted =
+                              '${onlyNum.substring(0, 3)}-${onlyNum.substring(3)}';
+                        } else if (onlyNum.length > 6) {
+                          formatted =
+                              '${onlyNum.substring(0, 3)}-${onlyNum.substring(3, 6)}-${onlyNum.substring(6)}';
+                        }
 
-                          if (formatted != value) {
-                            _phoneController.value = TextEditingValue(
-                              text: formatted,
-                              selection: TextSelection.collapsed(
-                                  offset: formatted.length),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      _buildTextField(
-                        label: 'メールアドレス',
-                        controller: _emailController,
-                        hint: '例）example@example.com',
-                        // 入力されているときだけ形式チェックを行う
-                        validator: (value) {
-                          final text = value?.trim() ?? '';
-                          if (text.isEmpty) {
-                            // 未入力はOK（必須ではない）
-                            return null;
-                          }
-                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(text)) {
-                            return '正しい形式のメールアドレスを入力してください';
-                          }
+                        if (formatted != value) {
+                          _phoneController.value = TextEditingValue(
+                            text: formatted,
+                            selection: TextSelection.collapsed(
+                                offset: formatted.length),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTextField(
+                      label: 'メールアドレス',
+                      controller: _emailController,
+                      hint: '例）example@example.com',
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        if (text.isEmpty) {
                           return null;
-                        },
-                      ),
-                    ],
-                  ),
+                        }
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(text)) {
+                          return '正しい形式のメールアドレスを入力してください';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
-            actions: [
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              TextButton(
+                onPressed: _saving ? null : _clear,
+                child: const Text('クリア'),
+              ),
+              const Spacer(),
               TextButton(
                 onPressed: _saving ? null : _cancel,
                 child: const Text('キャンセル'),
               ),
+              const SizedBox(width: 8),
               FilledButton(
                 onPressed: _saving ? null : _save,
                 child: const Text('保存'),
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -1126,54 +1299,18 @@ class _TempleInfoDialogState extends State<TempleInfoDialog> {
         border: const OutlineInputBorder(),
       ),
       onChanged: onChanged,
-      // デフォルトでは必須チェックは行わない（任意入力）
       validator: validator,
     );
   }
 }
 
 /// =======================
-/// 下段 右：年回表パネル（背景画像）
+/// 下段 右：年回表パネル
 /// =======================
-class NenkiPanel extends StatefulWidget {
-  const NenkiPanel({super.key});
+class NenkiPanel extends StatelessWidget {
+  final VoidCallback onOpenSheet;
 
-  @override
-  State<NenkiPanel> createState() => _NenkiPanelState();
-}
-
-class _NenkiPanelState extends State<NenkiPanel> {
-  Future<void> _openNenkiDialog() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      builder: (context) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final h = constraints.maxHeight;
-            final w = constraints.maxWidth;
-            return Padding(
-              // 上5％・左右7％・下10％の余白
-              padding: EdgeInsets.only(
-                top: h * 0.05,
-                bottom: h * 0.20,
-                left: w * 0.07,
-                right: w * 0.07,
-              ),
-              child: Dialog(
-                insetPadding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const _NenkiDialog(),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  const NenkiPanel({super.key, required this.onOpenSheet});
 
   @override
   Widget build(BuildContext context) {
@@ -1181,14 +1318,15 @@ class _NenkiPanelState extends State<NenkiPanel> {
       decoration: const BoxDecoration(
         image: DecorationImage(
           image: AssetImage('assets/news/bg_report.jpg'),
-          fit: BoxFit.fitHeight, // 縦100％、横は見切れOK
+          fit: BoxFit.cover,
           alignment: Alignment.center,
         ),
       ),
       child: InkWell(
-        onTap: _openNenkiDialog,
+        onTap: onOpenSheet,
         child: Container(
-          color: Colors.white.withOpacity(0.75),
+          // 背景の白を少し薄く
+          color: Colors.white.withOpacity(0.60),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -1218,7 +1356,6 @@ class _NenkiPanelState extends State<NenkiPanel> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // 「タップして年回を計算 ▶」を縦中央・左揃え
                 const Expanded(
                   child: Align(
                     alignment: Alignment.centerLeft,
@@ -1237,15 +1374,15 @@ class _NenkiPanelState extends State<NenkiPanel> {
   }
 }
 
-/// 年回表の計算ウィンドウ本体
-class _NenkiDialog extends StatefulWidget {
-  const _NenkiDialog({super.key});
+/// 年回表の計算シート本体（ボトムシートの中身）
+class _NenkiSheet extends StatefulWidget {
+  const _NenkiSheet();
 
   @override
-  State<_NenkiDialog> createState() => _NenkiDialogState();
+  State<_NenkiSheet> createState() => _NenkiSheetState();
 }
 
-class _NenkiDialogState extends State<_NenkiDialog> {
+class _NenkiSheetState extends State<_NenkiSheet> {
   final _yearController = TextEditingController();
   List<_NenkiRow> _rows = [];
 
@@ -1279,7 +1416,6 @@ class _NenkiDialogState extends State<_NenkiDialog> {
     for (final c in _cycles) {
       final yr = year + c - 1; // 命年＋(回忌−1)
       if (yr >= nowYear) {
-        // 1回忌 → 1周忌
         String label;
         if (c == 1) {
           label = '1周忌';
@@ -1381,24 +1517,13 @@ class _NenkiDialogState extends State<_NenkiDialog> {
     ];
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // タイトル＋閉じるボタン
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  '年回表',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close),
-              ),
-            ],
+          const Text(
+            '年回表',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -1429,7 +1554,6 @@ class _NenkiDialogState extends State<_NenkiDialog> {
             ],
           ),
           const SizedBox(height: 4),
-          // クイック入力：ラベル削除、ボタンのみ
           Wrap(
             spacing: 4,
             runSpacing: 4,
@@ -1442,7 +1566,6 @@ class _NenkiDialogState extends State<_NenkiDialog> {
             ],
           ),
           const SizedBox(height: 8),
-          // 計算結果＋コピー
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1470,10 +1593,16 @@ class _NenkiDialogState extends State<_NenkiDialog> {
                 color: Colors.white,
               ),
               child: _rows.isEmpty
-                  ? const Center(
-                      child: Text(
-                        '年を入力して計算か、年のボタンを押してください。',
-                        style: TextStyle(fontSize: 14),
+                  // ★ ここを修正：上揃え・左揃え＋文言変更
+                  ? Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: const Text(
+                          '年を入力して計算ボタンを押すか、\nそれぞれの年のボタンを押してください',
+                          style: TextStyle(fontSize: 14),
+                          textAlign: TextAlign.left,
+                        ),
                       ),
                     )
                   : ListView.builder(
