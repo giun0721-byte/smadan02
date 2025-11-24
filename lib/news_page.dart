@@ -128,6 +128,33 @@ class _NewsPageState extends State<NewsPage> {
     });
   }
 
+  /// 現在開いている記事の「次の記事」を表示
+  void _showNextArticle() {
+    if (_openedArticle == null) return;
+    final currentIndex = _articles.indexOf(_openedArticle!);
+    if (currentIndex == -1) return;
+    if (currentIndex >= _articles.length - 1) {
+      // 最後の記事なので何もしない
+      return;
+    }
+    setState(() {
+      _openedArticle = _articles[currentIndex + 1];
+    });
+  }
+
+  /// 現在開いている記事の「前の記事」を表示
+  void _showPrevArticle() {
+    if (_openedArticle == null) return;
+    final currentIndex = _articles.indexOf(_openedArticle!);
+    if (currentIndex <= 0) {
+      // 先頭の記事なので何もしない
+      return;
+    }
+    setState(() {
+      _openedArticle = _articles[currentIndex - 1];
+    });
+  }
+
   void _openTempleEditSheet() {
     setState(() {
       _openedArticle = null;
@@ -432,7 +459,11 @@ class _NewsPageState extends State<NewsPage> {
             child: Align(
               alignment: Alignment.bottomCenter,
               child: _BottomSheetFrame(
-                child: _ArticleSheetContent(article: article),
+                child: _ArticleSheetContent(
+                  article: article,
+                  onSwipeLeft: _showNextArticle,
+                  onSwipeRight: _showPrevArticle,
+                ),
               ),
             ),
           ),
@@ -675,62 +706,80 @@ class _NewsPageState extends State<NewsPage> {
 /// 記事詳細シートの中身
 class _ArticleSheetContent extends StatelessWidget {
   final NewsArticle article;
+  final VoidCallback? onSwipeLeft; // 次の記事へ
+  final VoidCallback? onSwipeRight; // 前の記事へ
 
-  const _ArticleSheetContent({required this.article});
+  const _ArticleSheetContent({
+    required this.article,
+    this.onSwipeLeft,
+    this.onSwipeRight,
+  });
 
   @override
   Widget build(BuildContext context) {
     final hasThumb =
         (article.thumbnail != null && article.thumbnail!.isNotEmpty);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (article.dateLabel.isNotEmpty) ...[
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity < -200) {
+          // 指を左へ払う → 次の記事
+          onSwipeLeft?.call();
+        } else if (velocity > 200) {
+          // 指を右へ払う → 前の記事
+          onSwipeRight?.call();
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (article.dateLabel.isNotEmpty) ...[
+              Text(
+                article.dateLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
             Text(
-              article.dateLabel,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade700,
+              article.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
-          ],
-          Text(
-            article.title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (hasThumb) ...[
-            Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  'assets/news/${article.thumbnail}',
-                  height: 160,
-                  fit: BoxFit.cover,
+            const SizedBox(height: 8),
+            if (hasThumb) ...[
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/news/${article.thumbnail}',
+                    height: 160,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  article.body,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.6,
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
           ],
-          Expanded(
-            child: SingleChildScrollView(
-              child: Text(
-                article.body,
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 1.6,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1593,7 +1642,6 @@ class _NenkiSheetState extends State<_NenkiSheet> {
                 color: Colors.white,
               ),
               child: _rows.isEmpty
-                  // ★ ここを修正：上揃え・左揃え＋文言変更
                   ? Align(
                       alignment: Alignment.topLeft,
                       child: Padding(
