@@ -437,37 +437,15 @@ class _NewsPageState extends State<NewsPage> {
     );
   }
 
-  /// 記事の下からシート表示（メニューにはかぶらない）
+  /// 記事の下からシート表示（アニメーション付きオーバーレイ）
   Widget _buildArticleOverlay() {
     final article = _openedArticle!;
-    return Positioned.fill(
-      child: GestureDetector(
-        // 黒背景タップで閉じる
-        onTap: _closeArticleWindow,
-        child: Container(
-          color: Colors.black54,
-          child: GestureDetector(
-            // シート本体タップでは背景タップ扱いにならないように
-            onTap: () {},
-            // 下向きスワイプで閉じる
-            onVerticalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity > 200) {
-                _closeArticleWindow();
-              }
-            },
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: _BottomSheetFrame(
-                child: _ArticleSheetContent(
-                  article: article,
-                  onSwipeLeft: _showNextArticle,
-                  onSwipeRight: _showPrevArticle,
-                ),
-              ),
-            ),
-          ),
-        ),
+    return _BottomSheetOverlay(
+      onClosed: _closeArticleWindow,
+      child: _ArticleSheetContent(
+        article: article,
+        onSwipeLeft: _showNextArticle,
+        onSwipeRight: _showPrevArticle,
       ),
     );
   }
@@ -483,34 +461,15 @@ class _NewsPageState extends State<NewsPage> {
       email: panelState?.email ?? '',
     );
 
-    return Positioned.fill(
-      child: GestureDetector(
-        onTap: _closeTempleEditSheet,
-        child: Container(
-          color: Colors.black54,
-          child: GestureDetector(
-            onTap: () {},
-            onVerticalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity > 200) {
-                _closeTempleEditSheet();
-              }
-            },
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: _BottomSheetFrame(
-                child: TempleInfoSheet(
-                  initialData: initial,
-                  onSaved: () async {
-                    await panelState?.refresh();
-                    _closeTempleEditSheet();
-                  },
-                  onCanceled: _closeTempleEditSheet,
-                ),
-              ),
-            ),
-          ),
-        ),
+    return _BottomSheetOverlay(
+      onClosed: _closeTempleEditSheet,
+      child: TempleInfoSheet(
+        initialData: initial,
+        onSaved: () async {
+          await panelState?.refresh();
+          _closeTempleEditSheet();
+        },
+        onCanceled: _closeTempleEditSheet,
       ),
     );
   }
@@ -527,149 +486,129 @@ class _NewsPageState extends State<NewsPage> {
     final sect = panelState.sect;
     final address = panelState.address;
 
-    return Positioned.fill(
-      child: GestureDetector(
-        onTap: _closeTempleActionSheet,
-        child: Container(
-          color: Colors.black54,
-          child: GestureDetector(
-            onTap: () {},
-            onVerticalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity > 200) {
-                _closeTempleActionSheet();
-              }
-            },
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: _BottomSheetFrame(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // お寺名 pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 4,
-                              offset: const Offset(1, 2),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      if (sect.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          sect,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                      if (address.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          address,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-
-                      // 電話ボタン
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFF3C4),
-                            foregroundColor: const Color(0xFF5D4037),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            _closeTempleActionSheet();
-                            panelState.callTemple();
-                          },
-                          icon: const Icon(Icons.phone, size: 22),
-                          label: const Text(
-                            '電話',
-                            style: TextStyle(fontSize: 17),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // メールボタン
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFF3C4),
-                            foregroundColor: const Color(0xFF5D4037),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            _closeTempleActionSheet();
-                            panelState.mailTemple();
-                          },
-                          icon: const Icon(Icons.mail, size: 22),
-                          label: const Text(
-                            'メール',
-                            style: TextStyle(fontSize: 17),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // 経路ボタン
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFF3C4),
-                            foregroundColor: const Color(0xFF5D4037),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            _closeTempleActionSheet();
-                            panelState.goTemple();
-                          },
-                          icon: const Icon(Icons.map, size: 22),
-                          label: const Text(
-                            '経路',
-                            style: TextStyle(fontSize: 17),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+    return _BottomSheetOverlay(
+      onClosed: _closeTempleActionSheet,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // お寺名 pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 4,
+                    offset: const Offset(1, 2),
                   ),
+                ],
+              ),
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-          ),
+            if (sect.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                sect,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+            if (address.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                address,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+            const SizedBox(height: 16),
+
+            // 電話ボタン
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFF3C4),
+                  foregroundColor: const Color(0xFF5D4037),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  _closeTempleActionSheet();
+                  panelState.callTemple();
+                },
+                icon: const Icon(Icons.phone, size: 22),
+                label: const Text(
+                  '電話',
+                  style: TextStyle(fontSize: 17),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // メールボタン
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFF3C4),
+                  foregroundColor: const Color(0xFF5D4037),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  _closeTempleActionSheet();
+                  panelState.mailTemple();
+                },
+                icon: const Icon(Icons.mail, size: 22),
+                label: const Text(
+                  'メール',
+                  style: TextStyle(fontSize: 17),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 経路ボタン
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFF3C4),
+                  foregroundColor: const Color(0xFF5D4037),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  _closeTempleActionSheet();
+                  panelState.goTemple();
+                },
+                icon: const Icon(Icons.map, size: 22),
+                label: const Text(
+                  '経路',
+                  style: TextStyle(fontSize: 17),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
         ),
       ),
     );
@@ -677,33 +616,15 @@ class _NewsPageState extends State<NewsPage> {
 
   /// 年回表シート
   Widget _buildNenkiOverlay() {
-    return Positioned.fill(
-      child: GestureDetector(
-        onTap: _closeNenkiSheet,
-        child: Container(
-          color: Colors.black54,
-          child: GestureDetector(
-            onTap: () {},
-            onVerticalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity > 200) {
-                _closeNenkiSheet();
-              }
-            },
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: const _BottomSheetFrame(
-                child: _NenkiSheet(),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return _BottomSheetOverlay(
+      onClosed: _closeNenkiSheet,
+      child: const _NenkiSheet(),
     );
   }
 }
 
 /// 記事詳細シートの中身
+/// 上部：サムネイルを左、右側にタイトルと日付、その右に前後矢印
 class _ArticleSheetContent extends StatelessWidget {
   final NewsArticle article;
   final VoidCallback? onSwipeLeft; // 次の記事へ
@@ -736,37 +657,67 @@ class _ArticleSheetContent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (article.dateLabel.isNotEmpty) ...[
-              Text(
-                article.dateLabel,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(height: 4),
-            ],
-            Text(
-              article.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (hasThumb) ...[
-              Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    'assets/news/${article.thumbnail}',
-                    height: 160,
-                    fit: BoxFit.cover,
+            // 上部：サムネイル + タイトル + 日付 + 左右矢印
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasThumb) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/news/${article.thumbnail}',
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                // タイトル & 日付
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (article.dateLabel.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          article.dateLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-            ],
+                // 左右矢印（視覚的なナビ用）
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                      onPressed: onSwipeRight, // 前の記事
+                      tooltip: '前の記事',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                      onPressed: onSwipeLeft, // 次の記事
+                      tooltip: '次の記事',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // 本文
             Expanded(
               child: SingleChildScrollView(
                 child: Text(
@@ -785,7 +736,93 @@ class _ArticleSheetContent extends StatelessWidget {
   }
 }
 
+/// =======================================
+/// 共通オーバーレイ：黒背景＋下からスライドするシート
+/// =======================================
+class _BottomSheetOverlay extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onClosed;
+
+  const _BottomSheetOverlay({
+    required this.child,
+    required this.onClosed,
+  });
+
+  @override
+  State<_BottomSheetOverlay> createState() => _BottomSheetOverlayState();
+}
+
+class _BottomSheetOverlayState extends State<_BottomSheetOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 280),
+      vsync: this,
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: const Offset(0, 0),
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _controller.forward();
+  }
+
+  Future<void> _startClose() async {
+    await _controller.reverse();
+    if (!mounted) return;
+    widget.onClosed();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: GestureDetector(
+        // 黒背景タップで閉じる（アニメーション付き）
+        onTap: _startClose,
+        child: Container(
+          color: Colors.black54,
+          child: GestureDetector(
+            // シート本体タップでは背景扱いにしない
+            onTap: () {},
+            // 下向きスワイプで閉じる
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity > 200) {
+                _startClose();
+              }
+            },
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: SlideTransition(
+                position: _slide,
+                child: _BottomSheetFrame(child: widget.child),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 共通の下からシート枠（個人ページ風）
+/// ※見た目のみ。アニメーションは _BottomSheetOverlay 側で実施
 class _BottomSheetFrame extends StatelessWidget {
   final Widget child;
 
@@ -1437,6 +1474,66 @@ class _NenkiSheetState extends State<_NenkiSheet> {
 
   final List<int> _cycles = [1, 3, 7, 13, 17, 25, 33, 50];
 
+  /// 入力文字列から西暦年を取り出す
+  /// - 2020 などの数字だけ → そのまま西暦として扱う
+  /// - 令和5 / R5 / 平成30 / H30 / 昭和60 / 昭和元年 など → 対応する西暦に変換
+  int? _parseYear(String input) {
+    var text = input.trim();
+    if (text.isEmpty) return null;
+
+    // 全角スペースや「年」を削除
+    text = text.replaceAll(RegExp(r'\s|　|年'), '');
+
+    // まず「数字のみ」の場合（例：2020）
+    if (RegExp(r'^[0-9]+$').hasMatch(text)) {
+      return int.tryParse(text);
+    }
+
+    // 「元年」対応用：数字部分が「元」の場合は 1 年とみなす
+    int? _numFrom(String s) {
+      if (s == '元') return 1;
+      return int.tryParse(s);
+    }
+
+    // 和暦：令和 / R
+    if (text.startsWith('令和') || text.startsWith('R')) {
+      final n = _numFrom(text.replaceFirst(RegExp(r'^(令和|R)'), ''));
+      if (n == null) return null;
+      return 2018 + n; // R1 = 2019
+    }
+
+    // 平成 / H
+    if (text.startsWith('平成') || text.startsWith('H')) {
+      final n = _numFrom(text.replaceFirst(RegExp(r'^(平成|H)'), ''));
+      if (n == null) return null;
+      return 1988 + n; // H1 = 1989
+    }
+
+    // 昭和 / S
+    if (text.startsWith('昭和') || text.startsWith('S')) {
+      final n = _numFrom(text.replaceFirst(RegExp(r'^(昭和|S)'), ''));
+      if (n == null) return null;
+      return 1925 + n; // S1 = 1926
+    }
+
+    // 大正 / T
+    if (text.startsWith('大正') || text.startsWith('T')) {
+      final n = _numFrom(text.replaceFirst(RegExp(r'^(大正|T)'), ''));
+      if (n == null) return null;
+      return 1911 + n; // T1 = 1912
+    }
+
+    // 明治 / M
+    if (text.startsWith('明治') || text.startsWith('M')) {
+      final n = _numFrom(text.replaceFirst(RegExp(r'^(明治|M)'), ''));
+      if (n == null) return null;
+      return 1867 + n; // M1 = 1868
+    }
+
+    // 対応外
+    return null;
+  }
+
   @override
   void dispose() {
     _yearController.dispose();
@@ -1445,7 +1542,7 @@ class _NenkiSheetState extends State<_NenkiSheet> {
 
   void _calcNenki() {
     final text = _yearController.text.trim();
-    final year = int.tryParse(text);
+    final year = _parseYear(text);
     final nowYear = DateTime.now().year;
 
     if (year == null || year < 1800 || year > 3000) {
@@ -1454,7 +1551,7 @@ class _NenkiSheetState extends State<_NenkiSheet> {
           _NenkiRow(
             label: '',
             year: null,
-            note: '正しい西暦年を入力してください。',
+            note: '正しい年数を入力してください。\n（例：2020／令和2／H30 など）',
           ),
         ];
       });
@@ -1585,11 +1682,12 @@ class _NenkiSheetState extends State<_NenkiSheet> {
               Expanded(
                 child: TextField(
                   controller: _yearController,
-                  keyboardType: TextInputType.number,
+                  // 和暦も入力できるように text に変更
+                  keyboardType: TextInputType.text,
                   style: const TextStyle(fontSize: 18),
                   decoration: const InputDecoration(
-                    labelText: 'ご命年（西暦）',
-                    hintText: '例：2020',
+                    labelText: 'ご命年',
+                    hintText: '例：2020／令和2／H30 など',
                     border: OutlineInputBorder(),
                   ),
                   onSubmitted: (_) => _calcNenki(),
@@ -1642,11 +1740,11 @@ class _NenkiSheetState extends State<_NenkiSheet> {
                 color: Colors.white,
               ),
               child: _rows.isEmpty
-                  ? Align(
+                  ? const Align(
                       alignment: Alignment.topLeft,
                       child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: const Text(
+                        padding: EdgeInsets.all(8.0),
+                        child: Text(
                           '年を入力して計算ボタンを押すか、\nそれぞれの年のボタンを押してください',
                           style: TextStyle(fontSize: 14),
                           textAlign: TextAlign.left,
@@ -1659,9 +1757,14 @@ class _NenkiSheetState extends State<_NenkiSheet> {
                         final r = _rows[index];
                         if (r.year == null) {
                           return ListTile(
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
                             title: Text(
                               r.note,
-                              style: const TextStyle(fontSize: 14),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                height: 1.1,
+                              ),
                             ),
                           );
                         }
@@ -1672,9 +1775,13 @@ class _NenkiSheetState extends State<_NenkiSheet> {
 
                         return ListTile(
                           dense: true,
+                          visualDensity: VisualDensity.compact,
                           title: Text(
                             titleText,
-                            style: const TextStyle(fontSize: 16),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              height: 1.0,
+                            ),
                           ),
                         );
                       },

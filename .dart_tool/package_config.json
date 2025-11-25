@@ -33,9 +33,9 @@
     },
     {
       "name": "cross_file",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/cross_file-0.3.5",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/cross_file-0.3.5+1",
       "packageUri": "lib/",
-      "languageVersion": "3.7"
+      "languageVersion": "3.8"
     },
     {
       "name": "csslib",
@@ -75,27 +75,27 @@
     },
     {
       "name": "file_selector_linux",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_linux-0.9.3+2",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_linux-0.9.4",
       "packageUri": "lib/",
-      "languageVersion": "3.3"
+      "languageVersion": "3.8"
     },
     {
       "name": "file_selector_macos",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_macos-0.9.4+5",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_macos-0.9.5",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "file_selector_platform_interface",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_platform_interface-2.6.2",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_platform_interface-2.7.0",
       "packageUri": "lib/",
-      "languageVersion": "3.0"
+      "languageVersion": "3.7"
     },
     {
       "name": "file_selector_windows",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_windows-0.9.3+4",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/file_selector_windows-0.9.3+5",
       "packageUri": "lib/",
-      "languageVersion": "3.4"
+      "languageVersion": "3.8"
     },
     {
       "name": "flutter",
@@ -111,7 +111,7 @@
     },
     {
       "name": "flutter_plugin_android_lifecycle",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.32",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.33",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -135,7 +135,7 @@
     },
     {
       "name": "http",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.5.0",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/http-1.6.0",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -147,25 +147,25 @@
     },
     {
       "name": "image_picker",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker-1.2.0",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker-1.2.1",
       "packageUri": "lib/",
-      "languageVersion": "3.6"
+      "languageVersion": "3.7"
     },
     {
       "name": "image_picker_android",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_android-0.8.13+7",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_android-0.8.13+10",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "image_picker_for_web",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_for_web-3.1.0",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_for_web-3.1.1",
       "packageUri": "lib/",
-      "languageVersion": "3.6"
+      "languageVersion": "3.8"
     },
     {
       "name": "image_picker_ios",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_ios-0.8.13+1",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/image_picker_ios-0.8.13+2",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -231,9 +231,9 @@
     },
     {
       "name": "meta",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.16.0",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/meta-1.17.0",
       "packageUri": "lib/",
-      "languageVersion": "2.12"
+      "languageVersion": "3.5"
     },
     {
       "name": "mime",
@@ -261,13 +261,13 @@
     },
     {
       "name": "path_provider_android",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_android-2.2.20",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_android-2.2.22",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "path_provider_foundation",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_foundation-2.4.3",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_foundation-2.4.4",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -315,13 +315,13 @@
     },
     {
       "name": "shared_preferences_android",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_android-2.4.15",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_android-2.4.17",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "shared_preferences_foundation",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_foundation-2.5.5",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences_foundation-2.5.6",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -387,7 +387,7 @@
     },
     {
       "name": "test_api",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/test_api-0.7.6",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/test_api-0.7.7",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
@@ -405,7 +405,7 @@
     },
     {
       "name": "url_launcher_android",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_android-6.3.26",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/url_launcher_android-6.3.28",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -459,13 +459,13 @@
     },
     {
       "name": "video_player_android",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_android-2.8.17",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_android-2.8.21",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
     {
       "name": "video_player_avfoundation",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_avfoundation-2.8.6",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/video_player_avfoundation-2.8.7",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -501,7 +501,7 @@
     },
     {
       "name": "webview_flutter_android",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_android-4.10.5",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_android-4.10.9",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -513,7 +513,7 @@
     },
     {
       "name": "webview_flutter_wkwebview",
-      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_wkwebview-3.23.2",
+      "rootUri": "file:///C:/Users/giun0/AppData/Local/Pub/Cache/hosted/pub.dev/webview_flutter_wkwebview-3.23.4",
       "packageUri": "lib/",
       "languageVersion": "3.9"
     },
@@ -537,8 +537,8 @@
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.9.2",
+  "generatorVersion": "3.10.1",
   "flutterRoot": "file:///C:/src/flutter",
-  "flutterVersion": "3.35.7",
+  "flutterVersion": "3.38.3",
   "pubCache": "file:///C:/Users/giun0/AppData/Local/Pub/Cache"
 }

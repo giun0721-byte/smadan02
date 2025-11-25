@@ -116,7 +116,7 @@
     },
     {
       "name": "image_picker",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "dependencies": [
         "flutter",
         "image_picker_android",
@@ -178,7 +178,7 @@
     },
     {
       "name": "meta",
-      "version": "1.16.0",
+      "version": "1.17.0",
       "dependencies": []
     },
     {
@@ -240,7 +240,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.6",
+      "version": "0.7.7",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -273,7 +273,7 @@
     },
     {
       "name": "video_player_avfoundation",
-      "version": "2.8.6",
+      "version": "2.8.7",
       "dependencies": [
         "flutter",
         "video_player_platform_interface"
@@ -281,7 +281,7 @@
     },
     {
       "name": "video_player_android",
-      "version": "2.8.17",
+      "version": "2.8.21",
       "dependencies": [
         "flutter",
         "video_player_platform_interface"
@@ -302,7 +302,7 @@
     },
     {
       "name": "cross_file",
-      "version": "0.3.5",
+      "version": "0.3.5+1",
       "dependencies": [
         "meta",
         "web"
@@ -329,7 +329,7 @@
     },
     {
       "name": "flutter_plugin_android_lifecycle",
-      "version": "2.0.32",
+      "version": "2.0.33",
       "dependencies": [
         "flutter"
       ]
@@ -393,7 +393,7 @@
     },
     {
       "name": "url_launcher_android",
-      "version": "6.3.26",
+      "version": "6.3.28",
       "dependencies": [
         "flutter",
         "url_launcher_platform_interface"
@@ -443,7 +443,7 @@
     },
     {
       "name": "shared_preferences_foundation",
-      "version": "2.5.5",
+      "version": "2.5.6",
       "dependencies": [
         "flutter",
         "shared_preferences_platform_interface"
@@ -451,7 +451,7 @@
     },
     {
       "name": "shared_preferences_android",
-      "version": "2.4.15",
+      "version": "2.4.17",
       "dependencies": [
         "flutter",
         "shared_preferences_platform_interface"
@@ -489,7 +489,7 @@
     },
     {
       "name": "path_provider_foundation",
-      "version": "2.4.3",
+      "version": "2.4.4",
       "dependencies": [
         "flutter",
         "path_provider_platform_interface"
@@ -497,7 +497,7 @@
     },
     {
       "name": "path_provider_android",
-      "version": "2.2.20",
+      "version": "2.2.22",
       "dependencies": [
         "flutter",
         "path_provider_platform_interface"
@@ -545,7 +545,7 @@
     },
     {
       "name": "image_picker_ios",
-      "version": "0.8.13+1",
+      "version": "0.8.13+2",
       "dependencies": [
         "flutter",
         "image_picker_platform_interface"
@@ -553,7 +553,7 @@
     },
     {
       "name": "image_picker_for_web",
-      "version": "3.1.0",
+      "version": "3.1.1",
       "dependencies": [
         "flutter",
         "flutter_web_plugins",
@@ -564,7 +564,7 @@
     },
     {
       "name": "image_picker_android",
-      "version": "0.8.13+7",
+      "version": "0.8.13+10",
       "dependencies": [
         "flutter",
         "flutter_plugin_android_lifecycle",
@@ -573,7 +573,7 @@
     },
     {
       "name": "webview_flutter_wkwebview",
-      "version": "3.23.2",
+      "version": "3.23.4",
       "dependencies": [
         "flutter",
         "meta",
@@ -592,7 +592,7 @@
     },
     {
       "name": "webview_flutter_android",
-      "version": "4.10.5",
+      "version": "4.10.9",
       "dependencies": [
         "flutter",
         "meta",
@@ -710,7 +710,7 @@
     },
     {
       "name": "file_selector_windows",
-      "version": "0.9.3+4",
+      "version": "0.9.3+5",
       "dependencies": [
         "cross_file",
         "file_selector_platform_interface",
@@ -719,7 +719,7 @@
     },
     {
       "name": "file_selector_platform_interface",
-      "version": "2.6.2",
+      "version": "2.7.0",
       "dependencies": [
         "cross_file",
         "flutter",
@@ -729,7 +729,7 @@
     },
     {
       "name": "http",
-      "version": "1.5.0",
+      "version": "1.6.0",
       "dependencies": [
         "async",
         "http_parser",
@@ -739,7 +739,7 @@
     },
     {
       "name": "file_selector_macos",
-      "version": "0.9.4+5",
+      "version": "0.9.5",
       "dependencies": [
         "cross_file",
         "file_selector_platform_interface",
@@ -748,7 +748,7 @@
     },
     {
       "name": "file_selector_linux",
-      "version": "0.9.3+2",
+      "version": "0.9.4",
       "dependencies": [
         "cross_file",
         "file_selector_platform_interface",
