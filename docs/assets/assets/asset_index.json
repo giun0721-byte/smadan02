@@ -1,0 +1,34 @@
+{
+  "bg": [
+    "assets/bg/bg1.jpg",
+    "assets/bg/bg2.jpg",
+    "assets/bg/bg3.jpg",
+    "assets/bg/bg4.jpg",
+    "assets/bg/bg5.jpg"
+  ],
+  "butsudan": [
+    "assets/butsudan/butsudan-eva.png",
+    "assets/butsudan/butsudan-karaki.png",
+    "assets/butsudan/butsudan-modan.png"
+  ],
+  "ihai": [
+    "assets/ihai/ihai1.png",
+    "assets/ihai/ihai1_g.png",
+    "assets/ihai/ihai2.png",
+    "assets/ihai/ihai3_k.png",
+    "assets/ihai/ihai3_s.png",
+    "assets/ihai/ihai4_kuri.png",
+    "assets/ihai/ihai6_eva1.png",
+    "assets/ihai/ihai6_eva2.png"
+  ],
+  "effect": [
+    "assets/effect/comet.mp4",
+    "assets/effect/gold-lightball.mp4",
+    "assets/effect/hanabi.mp4",
+    "assets/effect/leafs.mp4",
+    "assets/effect/leafs2.mp4",
+    "assets/effect/leafs3.mp4",
+    "assets/effect/particle1.mp4",
+    "assets/effect/snow1.mp4"
+  ]
+}

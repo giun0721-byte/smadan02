@@ -56,8 +56,11 @@ class _NewsPageState extends State<NewsPage> {
   bool _loading = true;
   String? _error;
 
-  // 下からシート表示用
-  NewsArticle? _openedArticle;
+  // 下からシート表示用（記事）
+  int? _openedArticleIndex; // 何番目の記事を開いているか
+  PageController? _articlePageController; // 記事の横スライド用
+
+  // その他の下シート表示用フラグ
   bool _showTempleEditSheet = false;
   bool _showTempleActionSheet = false;
   bool _showNenkiSheet = false;
@@ -70,6 +73,12 @@ class _NewsPageState extends State<NewsPage> {
   void initState() {
     super.initState();
     _loadNews();
+  }
+
+  @override
+  void dispose() {
+    _articlePageController?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadNews() async {
@@ -112,10 +121,17 @@ class _NewsPageState extends State<NewsPage> {
     }
   }
 
-  /// 個人ページと同イメージ：News記事の下からシート
+  /// News記事の下からシートを開く（PageView 初期位置を指定）
   void _openArticleWindow(NewsArticle article) {
+    final index = _articles.indexOf(article);
+    if (index < 0) return;
+
+    // 既存 PageController があれば破棄して作り直す
+    _articlePageController?.dispose();
+    _articlePageController = PageController(initialPage: index);
+
     setState(() {
-      _openedArticle = article;
+      _openedArticleIndex = index;
       _showTempleEditSheet = false;
       _showTempleActionSheet = false;
       _showNenkiSheet = false;
@@ -124,40 +140,45 @@ class _NewsPageState extends State<NewsPage> {
 
   void _closeArticleWindow() {
     setState(() {
-      _openedArticle = null;
+      _openedArticleIndex = null;
     });
   }
 
-  /// 現在開いている記事の「次の記事」を表示
+  /// 現在開いている記事の「次の記事」をアニメーション付きで表示
   void _showNextArticle() {
-    if (_openedArticle == null) return;
-    final currentIndex = _articles.indexOf(_openedArticle!);
-    if (currentIndex == -1) return;
+    if (_articlePageController == null || _openedArticleIndex == null) return;
+    final currentIndex = _openedArticleIndex!;
     if (currentIndex >= _articles.length - 1) {
       // 最後の記事なので何もしない
       return;
     }
-    setState(() {
-      _openedArticle = _articles[currentIndex + 1];
-    });
+
+    _articlePageController!.animateToPage(
+      currentIndex + 1,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
-  /// 現在開いている記事の「前の記事」を表示
+  /// 現在開いている記事の「前の記事」をアニメーション付きで表示
   void _showPrevArticle() {
-    if (_openedArticle == null) return;
-    final currentIndex = _articles.indexOf(_openedArticle!);
+    if (_articlePageController == null || _openedArticleIndex == null) return;
+    final currentIndex = _openedArticleIndex!;
     if (currentIndex <= 0) {
       // 先頭の記事なので何もしない
       return;
     }
-    setState(() {
-      _openedArticle = _articles[currentIndex - 1];
-    });
+
+    _articlePageController!.animateToPage(
+      currentIndex - 1,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   void _openTempleEditSheet() {
     setState(() {
-      _openedArticle = null;
+      _openedArticleIndex = null;
       _showTempleEditSheet = true;
       _showTempleActionSheet = false;
       _showNenkiSheet = false;
@@ -172,7 +193,7 @@ class _NewsPageState extends State<NewsPage> {
 
   void _openTempleActionSheet() {
     setState(() {
-      _openedArticle = null;
+      _openedArticleIndex = null;
       _showTempleEditSheet = false;
       _showTempleActionSheet = true;
       _showNenkiSheet = false;
@@ -187,7 +208,7 @@ class _NewsPageState extends State<NewsPage> {
 
   void _openNenkiSheet() {
     setState(() {
-      _openedArticle = null;
+      _openedArticleIndex = null;
       _showTempleEditSheet = false;
       _showTempleActionSheet = false;
       _showNenkiSheet = true;
@@ -240,7 +261,7 @@ class _NewsPageState extends State<NewsPage> {
                     ],
                   ),
           ),
-          if (_openedArticle != null) _buildArticleOverlay(),
+          if (_openedArticleIndex != null) _buildArticleOverlay(),
           if (_showTempleEditSheet) _buildTempleEditOverlay(),
           if (_showTempleActionSheet) _buildTempleActionOverlay(),
           if (_showNenkiSheet) _buildNenkiOverlay(),
@@ -437,15 +458,27 @@ class _NewsPageState extends State<NewsPage> {
     );
   }
 
-  /// 記事の下からシート表示（アニメーション付きオーバーレイ）
+  /// 記事の下からシート表示（PageView＋スライドアニメーション）
   Widget _buildArticleOverlay() {
-    final article = _openedArticle!;
+    if (_openedArticleIndex == null || _articles.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    _articlePageController ??=
+        PageController(initialPage: _openedArticleIndex!);
+
     return _BottomSheetOverlay(
       onClosed: _closeArticleWindow,
-      child: _ArticleSheetContent(
-        article: article,
-        onSwipeLeft: _showNextArticle,
-        onSwipeRight: _showPrevArticle,
+      child: _ArticlePager(
+        articles: _articles,
+        controller: _articlePageController!,
+        onPageChanged: (index) {
+          setState(() {
+            _openedArticleIndex = index;
+          });
+        },
+        onNext: _showNextArticle,
+        onPrev: _showPrevArticle,
       ),
     );
   }
@@ -623,17 +656,51 @@ class _NewsPageState extends State<NewsPage> {
   }
 }
 
+/// 記事詳細を横スワイプで切り替える PageView
+class _ArticlePager extends StatelessWidget {
+  final List<NewsArticle> articles;
+  final PageController controller;
+  final ValueChanged<int>? onPageChanged;
+  final VoidCallback? onNext;
+  final VoidCallback? onPrev;
+
+  const _ArticlePager({
+    required this.articles,
+    required this.controller,
+    this.onPageChanged,
+    this.onNext,
+    this.onPrev,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: controller,
+      itemCount: articles.length,
+      onPageChanged: onPageChanged,
+      itemBuilder: (context, index) {
+        final article = articles[index];
+        return _ArticleSheetContent(
+          article: article,
+          onNext: onNext,
+          onPrev: onPrev,
+        );
+      },
+    );
+  }
+}
+
 /// 記事詳細シートの中身
 /// 上部：サムネイルを左、右側にタイトルと日付、その右に前後矢印
 class _ArticleSheetContent extends StatelessWidget {
   final NewsArticle article;
-  final VoidCallback? onSwipeLeft; // 次の記事へ
-  final VoidCallback? onSwipeRight; // 前の記事へ
+  final VoidCallback? onNext; // 次の記事へ
+  final VoidCallback? onPrev; // 前の記事へ
 
   const _ArticleSheetContent({
     required this.article,
-    this.onSwipeLeft,
-    this.onSwipeRight,
+    this.onNext,
+    this.onPrev,
   });
 
   @override
@@ -641,96 +708,84 @@ class _ArticleSheetContent extends StatelessWidget {
     final hasThumb =
         (article.thumbnail != null && article.thumbnail!.isNotEmpty);
 
-    return GestureDetector(
-      onHorizontalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-        if (velocity < -200) {
-          // 指を左へ払う → 次の記事
-          onSwipeLeft?.call();
-        } else if (velocity > 200) {
-          // 指を右へ払う → 前の記事
-          onSwipeRight?.call();
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 上部：サムネイル + タイトル + 日付 + 左右矢印
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (hasThumb) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      'assets/news/${article.thumbnail}',
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover,
-                    ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 上部：サムネイル + タイトル + 日付 + 左右矢印
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (hasThumb) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/news/${article.thumbnail}',
+                    width: 72,
+                    height: 72,
+                    fit: BoxFit.cover,
                   ),
-                  const SizedBox(width: 12),
-                ],
-                // タイトル & 日付
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                ),
+                const SizedBox(width: 12),
+              ],
+              // タイトル & 日付
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      article.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (article.dateLabel.isNotEmpty) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        article.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                        article.dateLabel,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
                         ),
                       ),
-                      if (article.dateLabel.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          article.dateLabel,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ],
                     ],
-                  ),
-                ),
-                // 左右矢印（視覚的なナビ用）
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                      onPressed: onSwipeRight, // 前の記事
-                      tooltip: '前の記事',
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.arrow_forward_ios, size: 20),
-                      onPressed: onSwipeLeft, // 次の記事
-                      tooltip: '次の記事',
-                    ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // 本文
-            Expanded(
-              child: SingleChildScrollView(
-                child: Text(
-                  article.body,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.6,
+              ),
+              // 左右矢印（タップで前後の記事へ）
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                    onPressed: onPrev,
+                    tooltip: '前の記事',
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios, size: 20),
+                    onPressed: onNext,
+                    tooltip: '次の記事',
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 本文
+          Expanded(
+            child: SingleChildScrollView(
+              child: Text(
+                article.body,
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 1.6,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1490,42 +1545,42 @@ class _NenkiSheetState extends State<_NenkiSheet> {
     }
 
     // 「元年」対応用：数字部分が「元」の場合は 1 年とみなす
-    int? _numFrom(String s) {
+    int? numFrom(String s) {
       if (s == '元') return 1;
       return int.tryParse(s);
     }
 
     // 和暦：令和 / R
     if (text.startsWith('令和') || text.startsWith('R')) {
-      final n = _numFrom(text.replaceFirst(RegExp(r'^(令和|R)'), ''));
+      final n = numFrom(text.replaceFirst(RegExp(r'^(令和|R)'), ''));
       if (n == null) return null;
       return 2018 + n; // R1 = 2019
     }
 
     // 平成 / H
     if (text.startsWith('平成') || text.startsWith('H')) {
-      final n = _numFrom(text.replaceFirst(RegExp(r'^(平成|H)'), ''));
+      final n = numFrom(text.replaceFirst(RegExp(r'^(平成|H)'), ''));
       if (n == null) return null;
       return 1988 + n; // H1 = 1989
     }
 
     // 昭和 / S
     if (text.startsWith('昭和') || text.startsWith('S')) {
-      final n = _numFrom(text.replaceFirst(RegExp(r'^(昭和|S)'), ''));
+      final n = numFrom(text.replaceFirst(RegExp(r'^(昭和|S)'), ''));
       if (n == null) return null;
       return 1925 + n; // S1 = 1926
     }
 
     // 大正 / T
     if (text.startsWith('大正') || text.startsWith('T')) {
-      final n = _numFrom(text.replaceFirst(RegExp(r'^(大正|T)'), ''));
+      final n = numFrom(text.replaceFirst(RegExp(r'^(大正|T)'), ''));
       if (n == null) return null;
       return 1911 + n; // T1 = 1912
     }
 
     // 明治 / M
     if (text.startsWith('明治') || text.startsWith('M')) {
-      final n = _numFrom(text.replaceFirst(RegExp(r'^(明治|M)'), ''));
+      final n = numFrom(text.replaceFirst(RegExp(r'^(明治|M)'), ''));
       if (n == null) return null;
       return 1867 + n; // M1 = 1868
     }

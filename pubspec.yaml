@@ -36,3 +36,4 @@ flutter:
     - assets/effect/
     - assets/news/
     - assets/people.csv
+    - assets/asset_index.json

@@ -61,44 +61,35 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// AssetManifest.json を読み取り、assets/bg/, assets/butsudan/, assets/ihai/, assets/effect/ を抽出
+  /// assets/asset_index.json を読み取り、
+  /// assets/bg/, assets/butsudan/, assets/ihai/, assets/effect/ を抽出
   Future<void> _loadAssetLists() async {
     try {
-      final manifestJson = await rootBundle.loadString('AssetManifest.json');
-      final Map<String, dynamic> manifest = json.decode(manifestJson);
+      debugPrint('=== _loadAssetLists: read assets/asset_index.json ===');
 
-      // すべてのアセットパス
-      final allPaths = manifest.keys.cast<String>();
+      // 1) 事前に生成した asset_index.json を読み込む
+      final jsonStr = await rootBundle.loadString('assets/asset_index.json');
+      final Map<String, dynamic> index =
+          json.decode(jsonStr) as Map<String, dynamic>;
 
-      // 画像拡張子のみ
-      bool isImage(String p) {
-        final lp = p.toLowerCase();
-        return lp.endsWith('.png') ||
-            lp.endsWith('.jpg') ||
-            lp.endsWith('.jpeg') ||
-            lp.endsWith('.webp');
+      // 2) 各カテゴリを取り出し（無ければ空リスト）
+      List<String> _asStringList(String key) {
+        final v = index[key];
+        if (v is List) {
+          return v.map((e) => e.toString()).toList()..sort();
+        }
+        return <String>[];
       }
 
-      // 動画拡張子のみ
-      bool isVideo(String p) {
-        final lp = p.toLowerCase();
-        return lp.endsWith('.mp4') ||
-            lp.endsWith('.mov') ||
-            lp.endsWith('.webm');
-      }
+      final bg = _asStringList('bg');
+      final butsudan = _asStringList('butsudan');
+      final ihai = _asStringList('ihai');
+      final effects = _asStringList('effect');
 
-      List<String> filterImages(String prefix) =>
-          allPaths.where((p) => p.startsWith(prefix) && isImage(p)).toList()
-            ..sort();
-
-      List<String> filterVideos(String prefix) =>
-          allPaths.where((p) => p.startsWith(prefix) && isVideo(p)).toList()
-            ..sort();
-
-      final bg = filterImages('assets/bg/');
-      final butsudan = filterImages('assets/butsudan/');
-      final ihai = filterImages('assets/ihai/');
-      final effects = filterVideos('assets/effect/');
+      debugPrint('=== bg from index: $bg');
+      debugPrint('=== butsudan from index: $butsudan');
+      debugPrint('=== ihai from index: $ihai');
+      debugPrint('=== effects from index: $effects');
 
       if (!mounted) return;
       setState(() {
@@ -121,9 +112,11 @@ class _SettingsPageState extends State<SettingsPage> {
             : const [
                 'assets/ihai/ihai1.png',
                 'assets/ihai/ihai2.png',
+                'assets/ihai/ihai3_k.png',
               ];
         _currentIhaiTemplate ??=
             _ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null;
+
         _effectList = effects;
         _loadingAssets = false;
       });
@@ -137,20 +130,31 @@ class _SettingsPageState extends State<SettingsPage> {
       // 1) app_state に保存されているエフェクトが存在し、それが effects に含まれていればそれを使う
       if (savedEffect != null && effects.contains(savedEffect)) {
         initialEffect = savedEffect;
+        debugPrint('=== initialEffect from savedEffect: $initialEffect');
       }
       // 2) まだ何も選ばれておらず、effects が空でなければ先頭を初期値にする
       else if (savedEffect == null && effects.isNotEmpty) {
         initialEffect = effects.first;
+        debugPrint('=== initialEffect from first effects: $initialEffect');
         sel.setEffectAsset(initialEffect); // 初回だけデフォルトを保存
+      } else {
+        debugPrint(
+            '=== no initialEffect decided (savedEffect: $savedEffect, effects.isEmpty: ${effects.isEmpty})');
       }
 
       // 3) 初期表示すべきエフェクトが決まっていれば、プレビュー用に初期化
       if (initialEffect != null) {
         await _initEffectVideo(initialEffect);
       }
-    } catch (e) {
+
+      debugPrint('=== _loadAssetLists: end (index OK) ===');
+    } catch (e, st) {
+      // もし asset_index.json が無い / 壊れていた時のフォールバック
+      debugPrint('=== _loadAssetLists ERROR (index): $e ===');
+      debugPrint('=== stacktrace: $st ===');
+
       if (!mounted) return;
-      // 読み込み失敗時は画像系だけ固定値、エフェクトは空
+      // 読み込み失敗時は、背景・仏壇・位牌・エフェクトをすべて固定値でフォールバック
       setState(() {
         _bgList = const [
           'assets/bg/bg1.jpg',
@@ -162,15 +166,24 @@ class _SettingsPageState extends State<SettingsPage> {
           'assets/butsudan/butsudan-eva.png',
           'assets/butsudan/butsudan-modan.png',
         ];
+
         _ihaiCandidates = const [
           'assets/ihai/ihai1.png',
           'assets/ihai/ihai2.png',
+          'assets/ihai/ihai3_k.png',
         ];
         _currentIhaiTemplate ??=
             _ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null;
-        _effectList = const [];
+
+        _effectList = const [
+          'assets/effect/comet.mp4',
+          'assets/effect/leafs.mp4',
+        ];
+
         _loadingAssets = false;
       });
+
+      debugPrint('=== _loadAssetLists: end (fallback) ===');
     }
   }
 
@@ -252,7 +265,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ignoring: true, // タップは背面に通す
                                   child: SizedBox.expand(
                                     child: FittedBox(
-                                      // ★ 横幅優先 cover → 縦優先 fitHeight に変更
+                                      // 縦優先
                                       fit: BoxFit.fitHeight,
                                       child: SizedBox(
                                         width:
