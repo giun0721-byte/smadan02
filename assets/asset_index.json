@@ -12,14 +12,18 @@
     "assets/butsudan/butsudan-modan.png"
   ],
   "ihai": [
-    "assets/ihai/ihai1.png",
-    "assets/ihai/ihai1_g.png",
-    "assets/ihai/ihai2.png",
-    "assets/ihai/ihai3_k.png",
-    "assets/ihai/ihai3_s.png",
-    "assets/ihai/ihai4_kuri.png",
-    "assets/ihai/ihai6_eva1.png",
-    "assets/ihai/ihai6_eva2.png"
+    "assets/ihai/eva01.png",
+    "assets/ihai/eva02.png",
+    "assets/ihai/ihai01.png",
+    "assets/ihai/ihai02.png",
+    "assets/ihai/ihai03.png",
+    "assets/ihai/ihai04.png",
+    "assets/ihai/ihai05.png",
+    "assets/ihai/ihai06.png",
+    "assets/ihai/ihai07.png",
+    "assets/ihai/ihai08.png",
+    "assets/ihai/ihai09.png",
+    "assets/ihai/ihai10.png"
   ],
   "effect": [
     "assets/effect/comet.mp4",

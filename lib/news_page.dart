@@ -1136,8 +1136,8 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '長押しで登録 ▶',
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                        '長押しで登録',
+                        style: TextStyle(fontSize: 15, color: Colors.black54),
                       ),
                     ),
                   ),
@@ -1184,8 +1184,8 @@ class _TempleInfoPanelState extends State<TempleInfoPanel> {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'タップで連絡／長押しで登録 ▶',
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                        'タップで連絡\n長押しで登録',
+                        style: TextStyle(fontSize: 15, color: Colors.black54),
                       ),
                     ),
                   ),
@@ -1501,8 +1501,8 @@ class NenkiPanel extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'タップして年回を計算 ▶',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                      'タップして年回計算',
+                      style: TextStyle(fontSize: 15, color: Colors.black54),
                     ),
                   ),
                 ),

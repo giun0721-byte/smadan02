@@ -73,7 +73,7 @@ class _SettingsPageState extends State<SettingsPage> {
           json.decode(jsonStr) as Map<String, dynamic>;
 
       // 2) 各カテゴリを取り出し（無ければ空リスト）
-      List<String> _asStringList(String key) {
+      List<String> asStringList(String key) {
         final v = index[key];
         if (v is List) {
           return v.map((e) => e.toString()).toList()..sort();
@@ -81,10 +81,10 @@ class _SettingsPageState extends State<SettingsPage> {
         return <String>[];
       }
 
-      final bg = _asStringList('bg');
-      final butsudan = _asStringList('butsudan');
-      final ihai = _asStringList('ihai');
-      final effects = _asStringList('effect');
+      final bg = asStringList('bg');
+      final butsudan = asStringList('butsudan');
+      final ihai = asStringList('ihai');
+      final effects = asStringList('effect');
 
       debugPrint('=== bg from index: $bg');
       debugPrint('=== butsudan from index: $butsudan');
@@ -110,9 +110,9 @@ class _SettingsPageState extends State<SettingsPage> {
         _ihaiCandidates = ihai.isNotEmpty
             ? ihai
             : const [
-                'assets/ihai/ihai1.png',
-                'assets/ihai/ihai2.png',
-                'assets/ihai/ihai3_k.png',
+                'assets/ihai/ihai01.png',
+                'assets/ihai/ihai02.png',
+                'assets/ihai/ihai03.png',
               ];
         _currentIhaiTemplate ??=
             _ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null;
@@ -159,18 +159,15 @@ class _SettingsPageState extends State<SettingsPage> {
         _bgList = const [
           'assets/bg/bg1.jpg',
           'assets/bg/bg2.jpg',
-          'assets/bg/bg3.jpg',
         ];
         _butsudanList = const [
           'assets/butsudan/butsudan-karaki.png',
           'assets/butsudan/butsudan-eva.png',
-          'assets/butsudan/butsudan-modan.png',
         ];
 
         _ihaiCandidates = const [
-          'assets/ihai/ihai1.png',
-          'assets/ihai/ihai2.png',
-          'assets/ihai/ihai3_k.png',
+          'assets/ihai/ihai01.png',
+          'assets/ihai/ihai02.png',
         ];
         _currentIhaiTemplate ??=
             _ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null;
@@ -213,7 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ? sel.ihaiList.last
             : (_ihaiCandidates.isNotEmpty
                 ? _ihaiCandidates.first
-                : 'assets/ihai/ihai1.png'));
+                : 'assets/ihai/ihai01.png'));
 
     return Scaffold(
       body: SafeArea(
