@@ -29,6 +29,9 @@ class _PeoplePageState extends State<PeoplePage> {
   bool _loading = true;
   SortKey _sortKey = SortKey.nameAsc;
 
+  /// ★ 個人タップ時に開いている詳細の対象（null なら閉じている）
+  Person? _detailPerson;
+
   @override
   void initState() {
     super.initState();
@@ -221,6 +224,7 @@ class _PeoplePageState extends State<PeoplePage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      useRootNavigator: true, // 編集フォームは従来どおりモーダル
       builder: (context) {
         final nameCtrl = TextEditingController(text: original?.name ?? '');
         final nameKanaCtrl =
@@ -237,178 +241,181 @@ class _PeoplePageState extends State<PeoplePage> {
         final photo3Ctrl = TextEditingController(text: original?.photo3 ?? '');
         final noteCtrl = TextEditingController(text: original?.note ?? '');
 
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 8,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  original == null ? '個人を追加' : '情報を編集',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '名前',
-                    border: OutlineInputBorder(),
-                    isDense: true,
+        return SafeArea(
+          bottom: true,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 8,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    original == null ? '個人を追加' : '情報を編集',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
-                TextField(
-                  controller: nameKanaCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'なまえ（ふりがな）',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 8),
-
-                TextField(
-                  controller: kaiCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '戒名',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 8),
-
-                TextField(
-                  controller: kaiKanaCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'かいみょう（ふりがな）',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 8),
-
-                // 生年月日（タップで日付ピッカー）
-                _DateField(
-                  label: '生年月日',
-                  controller: dobCtrl,
-                  onPickDate: () async {
-                    final s = await _pickDate(dobCtrl.text);
-                    if (s != null) dobCtrl.text = s;
-                  },
-                ),
-                const SizedBox(height: 8),
-
-                // 歿年月日（タップで日付ピッカー）
-                _DateField(
-                  label: '歿年月日',
-                  controller: dodCtrl,
-                  onPickDate: () async {
-                    final s = await _pickDate(dodCtrl.text);
-                    if (s != null) dodCtrl.text = s;
-                  },
-                ),
-                const SizedBox(height: 8),
-
-                TextField(
-                  controller: ageCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '享年（例：歿年-生年+1）',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 8),
-
-                TextField(
-                  controller: relCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '続柄',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 12),
-
-                // 写真ファイル名（portraitフォルダから自動一覧）
-                _PhotoField(
-                  label: '写真名1（assets/portrait/ 内）',
-                  controller: photo1Ctrl,
-                ),
-                const SizedBox(height: 8),
-                _PhotoField(
-                  label: '写真名2（任意）',
-                  controller: photo2Ctrl,
-                ),
-                const SizedBox(height: 8),
-                _PhotoField(
-                  label: '写真名3（任意）',
-                  controller: photo3Ctrl,
-                ),
-                const SizedBox(height: 12),
-
-                TextField(
-                  controller: noteCtrl,
-                  decoration: const InputDecoration(
-                    labelText: '備考',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(null),
-                      child: const Text('キャンセル'),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '名前',
+                      border: OutlineInputBorder(),
+                      isDense: true,
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        // 名前・戒名が完全に空なら保存しない
-                        if (nameCtrl.text.trim().isEmpty &&
-                            kaiCtrl.text.trim().isEmpty) {
-                          Navigator.of(context).pop(null);
-                          return;
-                        }
-                        final p = Person(
-                          name: nameCtrl.text.trim(),
-                          nameKana: nameKanaCtrl.text.trim(),
-                          kainame: kaiCtrl.text.trim(),
-                          kainameKana: kaiKanaCtrl.text.trim(),
-                          dob: dobCtrl.text.trim(),
-                          dod: dodCtrl.text.trim(),
-                          age: ageCtrl.text.trim(),
-                          relation: relCtrl.text.trim(),
-                          photo1: photo1Ctrl.text.trim(),
-                          photo2: photo2Ctrl.text.trim(),
-                          photo3: photo3Ctrl.text.trim(),
-                          note: noteCtrl.text.trim(),
-                        );
-                        Navigator.of(context).pop(p);
-                      },
-                      child: const Text('保存'),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 8),
+
+                  TextField(
+                    controller: nameKanaCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'なまえ（ふりがな）',
+                      border: OutlineInputBorder(),
+                      isDense: true,
                     ),
-                  ],
-                ),
-              ],
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 8),
+
+                  TextField(
+                    controller: kaiCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '戒名',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 8),
+
+                  TextField(
+                    controller: kaiKanaCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'かいみょう（ふりがな）',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 生年月日（タップで日付ピッカー）
+                  _DateField(
+                    label: '生年月日',
+                    controller: dobCtrl,
+                    onPickDate: () async {
+                      final s = await _pickDate(dobCtrl.text);
+                      if (s != null) dobCtrl.text = s;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 歿年月日（タップで日付ピッカー）
+                  _DateField(
+                    label: '歿年月日',
+                    controller: dodCtrl,
+                    onPickDate: () async {
+                      final s = await _pickDate(dodCtrl.text);
+                      if (s != null) dodCtrl.text = s;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  TextField(
+                    controller: ageCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '享年（例：歿年-生年+1）',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 8),
+
+                  TextField(
+                    controller: relCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '続柄',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 写真ファイル名（portraitフォルダから自動一覧）
+                  _PhotoField(
+                    label: '写真名1（assets/portrait/ 内）',
+                    controller: photo1Ctrl,
+                  ),
+                  const SizedBox(height: 8),
+                  _PhotoField(
+                    label: '写真名2（任意）',
+                    controller: photo2Ctrl,
+                  ),
+                  const SizedBox(height: 8),
+                  _PhotoField(
+                    label: '写真名3（任意）',
+                    controller: photo3Ctrl,
+                  ),
+                  const SizedBox(height: 12),
+
+                  TextField(
+                    controller: noteCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '備考',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(null),
+                        child: const Text('キャンセル'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          // 名前・戒名が完全に空なら保存しない
+                          if (nameCtrl.text.trim().isEmpty &&
+                              kaiCtrl.text.trim().isEmpty) {
+                            Navigator.of(context).pop(null);
+                            return;
+                          }
+                          final p = Person(
+                            name: nameCtrl.text.trim(),
+                            nameKana: nameKanaCtrl.text.trim(),
+                            kainame: kaiCtrl.text.trim(),
+                            kainameKana: kaiKanaCtrl.text.trim(),
+                            dob: dobCtrl.text.trim(),
+                            dod: dodCtrl.text.trim(),
+                            age: ageCtrl.text.trim(),
+                            relation: relCtrl.text.trim(),
+                            photo1: photo1Ctrl.text.trim(),
+                            photo2: photo2Ctrl.text.trim(),
+                            photo3: photo3Ctrl.text.trim(),
+                            note: noteCtrl.text.trim(),
+                          );
+                          Navigator.of(context).pop(p);
+                        },
+                        child: const Text('保存'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -428,13 +435,13 @@ class _PeoplePageState extends State<PeoplePage> {
     }
   }
 
-  /// 個人編集
-  Future<void> _editPerson(Person p) async {
-    final edited = await _openPersonForm(original: p);
-    if (edited == null) return;
+  /// 個人編集（編集後の Person? を返す）
+  Future<Person?> _editPerson(Person original) async {
+    final edited = await _openPersonForm(original: original);
+    if (edited == null) return null;
 
     setState(() {
-      final idx = _all.indexOf(p);
+      final idx = _all.indexOf(original);
       if (idx >= 0) {
         _all[idx] = edited;
         _sortAndShow();
@@ -443,7 +450,7 @@ class _PeoplePageState extends State<PeoplePage> {
     await _saveCsvToPrefs();
 
     // HOMEリストも更新（同一人物を置き換え）
-    final idxHome = _homeList.indexWhere((hp) => hp.isSamePerson(p));
+    final idxHome = _homeList.indexWhere((hp) => hp.isSamePerson(original));
     if (idxHome >= 0) {
       _homeList[idxHome] = edited;
       final prefs = await SharedPreferences.getInstance();
@@ -452,6 +459,8 @@ class _PeoplePageState extends State<PeoplePage> {
         jsonEncode(_homeList.map((e) => e.toJson()).toList()),
       );
     }
+
+    return edited;
   }
 
   /// 個人削除（確認ダイアログ付き）
@@ -526,30 +535,9 @@ class _PeoplePageState extends State<PeoplePage> {
     );
   }
 
-  /// ロングタップ時のメニュー（※HOMEはやめて、削除だけ）
+  /// ロングタップ時：そのまま削除確認ダイアログへ（下からのシートはやめる）
   Future<void> _onLongPressPerson(Person p) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('削除する'),
-                onTap: () => Navigator.of(context).pop('delete'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (action == 'delete') {
-      await _deletePerson(p);
-    }
+    await _deletePerson(p);
   }
 
   /// 日付ピッカー（文字列 yyyy-MM-dd）
@@ -590,7 +578,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return '${d.year.toString().padLeft(4, '0')}-${two(d.month)}-${two(d.day)}';
   }
 
-  /// "YYYY-MM-DD" などの日付文字列を "yyyy年mm月dd日" に変換
+  /// "YYYY-MM-DD" などの日付文字列を "yyyy年mm月dd日" に変換（西暦）
   String _formatYmdJaFromString(String s) {
     final dt = _parseYmd(s);
     if (dt == null) return s; // パースできない場合は元の文字列をそのまま表示
@@ -598,105 +586,309 @@ class _PeoplePageState extends State<PeoplePage> {
     return '${dt.year}年${two(dt.month)}月${two(dt.day)}日';
   }
 
+  /// "YYYY-MM-DD" を 和暦 (令和/平成/昭和/大正/明治) に変換
+  /// 例: 1995-03-10 → 平成7年3月10日
+  /// 対象外の年はそのまま西暦和文表示にフォールバック
+  String _formatYmdWarekiFromString(String s) {
+    final dt = _parseYmd(s);
+    if (dt == null) return s;
+
+    final d = dt;
+    final reiwaStart = DateTime(2019, 5, 1);
+    final heiseiStart = DateTime(1989, 1, 8);
+    final showaStart = DateTime(1926, 12, 25);
+    final taishoStart = DateTime(1912, 7, 30);
+    final meijiStart = DateTime(1868, 1, 25);
+
+    String era;
+    int eraYear;
+
+    if (!d.isBefore(reiwaStart)) {
+      era = '令和';
+      eraYear = d.year - 2018; // 2019年=令和1年
+    } else if (!d.isBefore(heiseiStart)) {
+      era = '平成';
+      eraYear = d.year - 1988; // 1989年=平成1年
+    } else if (!d.isBefore(showaStart)) {
+      era = '昭和';
+      eraYear = d.year - 1925; // 1926年=昭和1年
+    } else if (!d.isBefore(taishoStart)) {
+      era = '大正';
+      eraYear = d.year - 1911; // 1912年=大正1年
+    } else if (!d.isBefore(meijiStart)) {
+      era = '明治';
+      eraYear = d.year - 1867; // 1868年=明治1年
+    } else {
+      // それ以前は西暦和文にフォールバック
+      return _formatYmdJaFromString(s);
+    }
+
+    final yearStr = (eraYear == 1) ? '元年' : '${eraYear}年';
+    return '$era$yearStr${d.month}月${d.day}日';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SafeArea(
-      child: Column(
+      child: Stack(
         children: [
-          // ─────────────────────────────
-          // 上部バー
-          // 左：メニューボタン（三本線）
-          // 右：「＋追加登録」ボタン
-          // ─────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-            child: Row(
-              children: [
-                PopupMenuButton<SortKey>(
-                  icon: const Icon(Icons.menu),
-                  tooltip: '並び替えメニュー',
-                  onSelected: _changeSort,
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: SortKey.nameAsc,
-                      child: Text('名前昇順 (あ→)'),
+          // 下地は従来どおり Column で一覧を表示
+          Column(
+            children: [
+              // ─────────────────────────────
+              // 上部バー
+              // 左：メニューボタン（三本線）
+              // 右：「＋追加登録」ボタン
+              // ─────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                child: Row(
+                  children: [
+                    PopupMenuButton<SortKey>(
+                      icon: const Icon(Icons.menu),
+                      tooltip: '並び替えメニュー',
+                      onSelected: _changeSort,
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: SortKey.nameAsc,
+                          child: Text('名前昇順 (あ→)'),
+                        ),
+                        PopupMenuItem(
+                          value: SortKey.nameDesc,
+                          child: Text('名前降順 (→あ)'),
+                        ),
+                        PopupMenuItem(
+                          value: SortKey.dodDesc,
+                          child: Text('歿年月日 新しい順'),
+                        ),
+                        PopupMenuItem(
+                          value: SortKey.dodAsc,
+                          child: Text('歿年月日 古い順'),
+                        ),
+                        PopupMenuItem(
+                          value: SortKey.dobAsc,
+                          child: Text('生年月日 古い順'),
+                        ),
+                        PopupMenuItem(
+                          value: SortKey.dobDesc,
+                          child: Text('生年月日 新しい順'),
+                        ),
+                      ],
                     ),
-                    PopupMenuItem(
-                      value: SortKey.nameDesc,
-                      child: Text('名前降順 (→あ)'),
-                    ),
-                    PopupMenuItem(
-                      value: SortKey.dodDesc,
-                      child: Text('歿年月日 新しい順'),
-                    ),
-                    PopupMenuItem(
-                      value: SortKey.dodAsc,
-                      child: Text('歿年月日 古い順'),
-                    ),
-                    PopupMenuItem(
-                      value: SortKey.dobAsc,
-                      child: Text('生年月日 古い順'),
-                    ),
-                    PopupMenuItem(
-                      value: SortKey.dobDesc,
-                      child: Text('生年月日 新しい順'),
+                    const SizedBox(width: 8),
+                    _TopShortcutButton(
+                      label: '＋追加登録',
+                      onTap: _addPerson,
                     ),
                   ],
                 ),
-                const SizedBox(width: 8),
-                _TopShortcutButton(
-                  label: '＋追加登録',
-                  onTap: _addPerson,
+              ),
+
+              if (_loading)
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_view.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      '表示できるデータがありません。\nassets/people.csv を確認するか、上の「＋追加登録」から登録してください。',
+                      style: theme.textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: _view.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, i) {
+                      final p = _view[i];
+
+                      // 和暦の歿年月日（Chipの表示テキスト）
+                      final dodTextWareki = p.dod.isNotEmpty
+                          ? '${_formatYmdWarekiFromString(p.dod)}歿'
+                          : '';
+
+                      // ★ 命日／月命日判定
+                      bool isMeinichi = false;
+                      bool isTsukiMeinichi = false;
+
+                      final dodDate = _parseYmd(p.dod);
+                      if (dodDate != null) {
+                        final today = DateTime.now();
+                        final sameMonth = today.month == dodDate.month;
+                        final sameDay = today.day == dodDate.day;
+
+                        if (sameMonth && sameDay) {
+                          // 年は問わず、月日が同じ → 命日
+                          isMeinichi = true;
+                        } else if (sameDay) {
+                          // 日だけ同じ → 月命日
+                          isTsukiMeinichi = true;
+                        }
+                      }
+
+                      final bool isHome =
+                          _homeList.any((hp) => hp.isSamePerson(p));
+
+                      return ListTile(
+                        leading: _PortraitThumb(
+                          photoPath: p.primaryPortraitPath,
+                          isHome: isHome, // ★HOMEなら太丸
+                        ),
+
+                        // ★ 一覧1行のメインレイアウト（全部左寄せ）
+                        title: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1行目：ふりがな＋名前 ＋ 続柄
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // ふりがな＋名前（縦並び）
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (p.nameKana.isNotEmpty)
+                                      Text(
+                                        p.nameKana,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontSize: 11,
+                                              color: Colors.grey[600],
+                                            ),
+                                      ),
+                                    Text(
+                                      p.name.isEmpty ? '(無名)' : p.name,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium,
+                                    ),
+                                  ],
+                                ),
+
+                                // 続柄（名前の右に左寄せで表示）
+                                if (p.relation.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Text(
+                                      p.relation,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(color: Colors.grey[800]),
+                                    ),
+                                  ),
+                              ],
+                            ),
+
+                            // 2行目：歿年月日チップ（左寄せ）
+                            if (dodTextWareki.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isMeinichi
+                                        ? Colors.redAccent // 命日
+                                        : isTsukiMeinichi
+                                            ? Colors.orangeAccent // 月命日
+                                            : Colors.grey.shade300, // 通常
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    dodTextWareki,
+                                    style: TextStyle(
+                                      fontSize: 13, // 少し大きめ
+                                      color: (isMeinichi || isTsukiMeinichi)
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        // 一覧では備考は表示しない
+                        subtitle: null,
+
+                        onTap: () => _showDetail(p),
+                        onLongPress: () => _onLongPressPerson(p),
+                      );
+                    },
+                  ),
                 ),
-              ],
-            ),
+            ],
           ),
 
-          if (_loading)
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_view.isEmpty)
-            Expanded(
-              child: Center(
-                child: Text(
-                  '表示できるデータがありません。\nassets/people.csv を確認するか、上の「＋追加登録」から登録してください。',
-                  style: theme.textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
+          // ★ 個人詳細のオーバーレイ（news_page と同じ考え方）
+          if (_detailPerson != null) _buildDetailOverlay(),
+        ],
+      ),
+    );
+  }
+
+  /// 個人タップ → 詳細オーバーレイを開く
+  void _showDetail(Person p) {
+    setState(() {
+      _detailPerson = p;
+    });
+  }
+
+  /// 詳細を閉じる
+  void _closeDetail() {
+    setState(() {
+      _detailPerson = null;
+    });
+  }
+
+  /// 個人詳細のオーバーレイ本体
+  Widget _buildDetailOverlay() {
+    final p = _detailPerson!;
+    final photos = p.portraitPaths;
+    final theme = Theme.of(context);
+
+    final bornText =
+        p.dob.isNotEmpty ? '${_formatYmdJaFromString(p.dob)}生' : '';
+    final diedText =
+        p.dod.isNotEmpty ? '${_formatYmdJaFromString(p.dod)}歿' : '';
+    final isHome = _homeList.any((hp) => hp.isSamePerson(p));
+
+    return _BottomSheetOverlay(
+      onClosed: _closeDetail,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: 3 / 4, // タブレット風の縦横比
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6EFE9),
+                borderRadius: BorderRadius.circular(32),
               ),
-            )
-          else
-            Expanded(
-              child: ListView.separated(
-                itemCount: _view.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, i) {
-                  final p = _view[i];
-
-                  final dodText = p.dod.isNotEmpty
-                      ? '${_formatYmdJaFromString(p.dod)}歿'
-                      : '';
-
-                  final bool isHome = _homeList.any((hp) => hp.isSamePerson(p));
-
-                  return ListTile(
-                    leading: _PortraitThumb(
-                      photoPath: p.primaryPortraitPath,
-                      isHome: isHome, // ★HOMEなら太丸
-                    ),
-                    title: Column(
+              child: Column(
+                children: [
+                  // 上部 名前・ふりがな・続柄／備考（名前の横）
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (p.nameKana.isNotEmpty)
                           Text(
                             p.nameKana,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontSize: 11,
-                                      color: Colors.grey[600],
-                                    ),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
                           ),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -704,237 +896,156 @@ class _PeoplePageState extends State<PeoplePage> {
                             Expanded(
                               child: Text(
                                 p.name.isEmpty ? '(無名)' : p.name,
-                                style: Theme.of(context).textTheme.titleMedium,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 24,
+                                ),
                               ),
                             ),
                             if (p.relation.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(left: 8),
-                                child: Text(
-                                  p.relation,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(color: Colors.grey[800]),
+                                child: _TagChip(label: p.relation),
+                              ),
+                            if (p.note.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: _TagChip(
+                                  label: p.note,
+                                  maxWidth: 120,
                                 ),
                               ),
                           ],
                         ),
-                        if (p.note.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              p.note,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.grey[700]),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        if (dodText.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              dodText,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.grey[700]),
-                            ),
-                          ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () => _editPerson(p),
-                    ),
-                    onTap: () => _showDetail(p, isHome: isHome),
-                    onLongPress: () => _onLongPressPerson(p), // いまは削除だけ
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+                  ),
 
-  void _showDetail(Person p, {required bool isHome}) {
-    final photos = p.portraitPaths;
+                  const SizedBox(height: 16),
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) {
-        final theme = Theme.of(context);
-
-        final bornText =
-            p.dob.isNotEmpty ? '${_formatYmdJaFromString(p.dob)}生' : '';
-        final diedText =
-            p.dod.isNotEmpty ? '${_formatYmdJaFromString(p.dod)}歿' : '';
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: 3 / 4, // タブレット風の縦横比
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6EFE9),
-                  borderRadius: BorderRadius.circular(32),
-                ),
-                child: Column(
-                  children: [
-                    // 上部 名前・ふりがな・続柄／備考（名前の横）
-                    Padding(
+                  // 写真部分
+                  Expanded(
+                    child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (p.nameKana.isNotEmpty)
-                            Text(
-                              p.nameKana,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: _PortraitCarousel(photos: photos),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 下部の情報
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 戒名のふりがな
+                        if (p.kainameKana.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              p.kainameKana,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontSize: 12,
                                 color: Colors.grey[700],
                               ),
                             ),
+                          ),
+                        if (p.kainame.isNotEmpty || p.age.isNotEmpty)
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  p.name.isEmpty ? '(無名)' : p.name,
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 24,
-                                  ),
+                              if (p.kainame.isNotEmpty)
+                                Text(
+                                  '戒名　${p.kainame}',
+                                  style: theme.textTheme.bodyMedium
+                                      ?.copyWith(fontSize: 15),
                                 ),
-                              ),
-                              if (p.relation.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: _TagChip(label: p.relation),
-                                ),
-                              if (p.note.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: _TagChip(
-                                    label: p.note,
-                                    maxWidth: 120,
-                                  ),
+                              if (p.kainame.isNotEmpty && p.age.isNotEmpty)
+                                const SizedBox(width: 12),
+                              if (p.age.isNotEmpty)
+                                Text(
+                                  '享年${p.age}才',
+                                  style: theme.textTheme.bodyMedium
+                                      ?.copyWith(fontSize: 15),
                                 ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
+                        const SizedBox(height: 8),
+                        if (bornText.isNotEmpty || diedText.isNotEmpty)
+                          Text(
+                            [
+                              bornText,
+                              diedText,
+                            ].where((e) => e.isNotEmpty).join(' 〜 '),
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(fontSize: 15),
+                          ),
+                        const SizedBox(height: 16),
 
-                    const SizedBox(height: 16),
+                        // ★ HOMEに表示ボタン + 編集ボタン
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: _closeDetail,
+                              child: const Text('閉じる'),
+                            ),
+                            const SizedBox(width: 8),
 
-                    // 写真部分
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: _PortraitCarousel(photos: photos),
+                            // 編集ボタン（編集後に自動で詳細を再表示）
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.edit),
+                              label: const Text('編集'),
+                              onPressed: () async {
+                                final target = p; // 編集開始時の Person を保持
+                                _closeDetail(); // いったん詳細を閉じる
+
+                                final edited = await _editPerson(target);
+
+                                if (!mounted) return;
+
+                                if (edited != null) {
+                                  // 保存された場合：編集後の内容で詳細を再表示
+                                  _showDetail(edited);
+                                } else {
+                                  // キャンセルされた場合：元の内容で詳細を再表示
+                                  _showDetail(target);
+                                }
+                              },
+                            ),
+
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              icon: Icon(
+                                isHome ? Icons.home : Icons.home_outlined,
+                              ),
+                              label: Text(
+                                isHome ? 'HOME表示をやめる' : 'HOMEに表示',
+                              ),
+                              onPressed: () async {
+                                await _toggleHomePerson(p, isHome);
+                                if (mounted) {
+                                  _closeDetail();
+                                }
+                              },
+                            ),
+                          ],
                         ),
-                      ),
+                      ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // 下部の情報
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 戒名のふりがな
-                          if (p.kainameKana.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                p.kainameKana,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: 12,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ),
-                          if (p.kainame.isNotEmpty || p.age.isNotEmpty)
-                            Row(
-                              children: [
-                                if (p.kainame.isNotEmpty)
-                                  Text(
-                                    '戒名　${p.kainame}',
-                                    style: theme.textTheme.bodyMedium
-                                        ?.copyWith(fontSize: 15),
-                                  ),
-                                if (p.kainame.isNotEmpty && p.age.isNotEmpty)
-                                  const SizedBox(width: 12),
-                                if (p.age.isNotEmpty)
-                                  Text(
-                                    '享年${p.age}才',
-                                    style: theme.textTheme.bodyMedium
-                                        ?.copyWith(fontSize: 15),
-                                  ),
-                              ],
-                            ),
-                          const SizedBox(height: 8),
-                          if (bornText.isNotEmpty || diedText.isNotEmpty)
-                            Text(
-                              [
-                                bornText,
-                                diedText,
-                              ].where((e) => e.isNotEmpty).join(' 〜 '),
-                              style: theme.textTheme.bodyMedium
-                                  ?.copyWith(fontSize: 15),
-                            ),
-                          const SizedBox(height: 16),
-
-                          // ★ HOMEに表示ボタン
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(context).pop(), // 閉じるだけ
-                                child: const Text('閉じる'),
-                              ),
-                              const SizedBox(width: 8),
-                              ElevatedButton.icon(
-                                icon: Icon(
-                                  isHome ? Icons.home : Icons.home_outlined,
-                                ),
-                                label: Text(
-                                  isHome ? 'HOME表示をやめる' : 'HOMEに表示',
-                                ),
-                                onPressed: () async {
-                                  await _toggleHomePerson(p, isHome);
-                                  if (context.mounted) {
-                                    Navigator.of(context).pop();
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -1212,6 +1323,7 @@ class _PhotoField extends StatelessWidget {
           onPressed: () async {
             final paths = await _loadPortraitPaths();
             if (paths.isEmpty) {
+              // ignore: use_build_context_synchronously
               showDialog(
                 context: context,
                 builder: (_) => AlertDialog(
@@ -1231,33 +1343,38 @@ class _PhotoField extends StatelessWidget {
               return;
             }
 
+            // ignore: use_build_context_synchronously
             final selected = await showModalBottomSheet<String>(
               context: context,
               showDragHandle: true,
+              useRootNavigator: true,
               builder: (context) {
-                return ListView(
-                  shrinkWrap: true,
-                  children: [
-                    const ListTile(
-                      title: Text('ファイル名を選択'),
-                    ),
-                    for (final path in paths)
-                      ListTile(
-                        leading: SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: _safeAssetImage(
-                            path,
-                            fit: BoxFit.cover,
-                            fallbackIcon: Icons.image,
-                          ),
-                        ),
-                        title: Text(path.split('/').last),
-                        subtitle: Text(path),
-                        onTap: () =>
-                            Navigator.of(context).pop(path.split('/').last),
+                return SafeArea(
+                  bottom: true,
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      const ListTile(
+                        title: Text('ファイル名を選択'),
                       ),
-                  ],
+                      for (final path in paths)
+                        ListTile(
+                          leading: SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: _safeAssetImage(
+                              path,
+                              fit: BoxFit.cover,
+                              fallbackIcon: Icons.image,
+                            ),
+                          ),
+                          title: Text(path.split('/').last),
+                          subtitle: Text(path),
+                          onTap: () =>
+                              Navigator.of(context).pop(path.split('/').last),
+                        ),
+                    ],
+                  ),
                 );
               },
             );
@@ -1497,6 +1614,129 @@ class _TagChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: child,
+    );
+  }
+}
+
+/// =======================
+/// NEWSページと同じ「ページ内ボトムシート」用ウィジェット
+/// =======================
+
+class _BottomSheetOverlay extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onClosed;
+
+  const _BottomSheetOverlay({
+    required this.child,
+    required this.onClosed,
+  });
+
+  @override
+  State<_BottomSheetOverlay> createState() => _BottomSheetOverlayState();
+}
+
+class _BottomSheetOverlayState extends State<_BottomSheetOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 280),
+      vsync: this,
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: const Offset(0, 0),
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    _controller.forward();
+  }
+
+  Future<void> _startClose() async {
+    await _controller.reverse();
+    if (!mounted) return;
+    widget.onClosed();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: GestureDetector(
+        // 黒背景タップで閉じる（アニメーション付き）
+        onTap: _startClose,
+        child: Container(
+          color: Colors.black54,
+          child: GestureDetector(
+            // シート本体タップでは背景扱いにしない
+            onTap: () {},
+            // 下向きスワイプで閉じる
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity > 200) {
+                _startClose();
+              }
+            },
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: SlideTransition(
+                position: _slide,
+                child: _BottomSheetFrame(child: widget.child),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 共通の下からシート枠
+class _BottomSheetFrame extends StatelessWidget {
+  final Widget child;
+
+  const _BottomSheetFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final height = media.size.height * 0.8; // 全体の約8割
+
+    return Container(
+      height: height,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          // 上部のつまみ
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(child: child),
+        ],
+      ),
     );
   }
 }
