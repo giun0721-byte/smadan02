@@ -1,5 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+// ★ 日本語ローカライズ用（カレンダーなどを日本語にする）
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'home_page.dart';
 import 'news_page.dart';
 import 'people_page.dart';
@@ -26,6 +30,20 @@ class SmadanApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
       ),
+
+      // ★ ここからローカライズ設定（カレンダーを含め日本語表示に必要）
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ja', 'JP'), // 日本語
+        Locale('en', 'US'), //（必要なら）英語も
+      ],
+      locale: const Locale('ja', 'JP'),
+      // ★ ここまで
+
       home: const MainScreen(),
     );
   }

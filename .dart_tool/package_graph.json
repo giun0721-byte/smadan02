@@ -10,6 +10,7 @@
         "csv",
         "file_picker",
         "flutter",
+        "flutter_localizations",
         "image_picker",
         "path_provider",
         "provider",
@@ -150,6 +151,15 @@
         "collection",
         "flutter",
         "nested"
+      ]
+    },
+    {
+      "name": "flutter_localizations",
+      "version": "0.0.0",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "path"
       ]
     },
     {
@@ -604,6 +614,15 @@
       "version": "1.0.0",
       "dependencies": [
         "flutter"
+      ]
+    },
+    {
+      "name": "intl",
+      "version": "0.20.2",
+      "dependencies": [
+        "clock",
+        "meta",
+        "path"
       ]
     },
     {

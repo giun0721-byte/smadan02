@@ -301,14 +301,14 @@ class _HomePageState extends State<HomePage> {
     double w,
     double h,
   ) {
-    final ihaiHeight = h * 0.35 * item.scale;
+    final ihaiHeight = h * 0.25 * item.scale;
 
-// 0.0〜1.0 の正規化座標を安全にクランプ
+    // 0.0〜1.0 の正規化座標を安全にクランプ
     final cx = item.centerX.clamp(0.0, 1.0);
-// ★ 10% 上に補正（＝中心座標を 0.10 減らす）
-    final cy = (item.centerY - 0.10).clamp(0.0, 1.0);
+    // ★ 9% 上に補正（以前より少し下になる）
+    final cy = (item.centerY - 0.09).clamp(0.0, 1.0);
 
-// Alignment を使って「中心座標」を素直に指定
+    // Alignment を使って「中心座標」を素直に指定
     final alignment = Alignment(cx * 2 - 1, cy * 2 - 1);
 
     return Align(

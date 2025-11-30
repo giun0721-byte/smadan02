@@ -32,6 +32,10 @@ class _PeoplePageState extends State<PeoplePage> {
   /// ★ 個人タップ時に開いている詳細の対象（null なら閉じている）
   Person? _detailPerson;
 
+  /// ★ 新規登録／編集フォーム用（オーバーレイ表示中なら Completer が非 null）
+  Person? _formOriginal;
+  Completer<Person?>? _formCompleter;
+
   @override
   void initState() {
     super.initState();
@@ -218,209 +222,26 @@ class _PeoplePageState extends State<PeoplePage> {
     await prefs.setString(_prefsKeyPeopleCsv, csvStr);
   }
 
-  /// 個人フォーム（追加・編集共通）をモバイル向けボトムシートで開く
-  Future<Person?> _openPersonForm({Person? original}) async {
-    return showModalBottomSheet<Person>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      useRootNavigator: true, // 編集フォームはフルスクリーンにかぶせる
-      builder: (context) {
-        final nameCtrl = TextEditingController(text: original?.name ?? '');
-        final nameKanaCtrl =
-            TextEditingController(text: original?.nameKana ?? '');
-        final kaiCtrl = TextEditingController(text: original?.kainame ?? '');
-        final kaiKanaCtrl =
-            TextEditingController(text: original?.kainameKana ?? '');
-        final dobCtrl = TextEditingController(text: original?.dob ?? '');
-        final dodCtrl = TextEditingController(text: original?.dod ?? '');
-        final ageCtrl = TextEditingController(text: original?.age ?? '');
-        final relCtrl = TextEditingController(text: original?.relation ?? '');
-        final photo1Ctrl = TextEditingController(text: original?.photo1 ?? '');
-        final photo2Ctrl = TextEditingController(text: original?.photo2 ?? '');
-        final photo3Ctrl = TextEditingController(text: original?.photo3 ?? '');
-        final noteCtrl = TextEditingController(text: original?.note ?? '');
+  /// 個人フォーム（追加・編集共通）を PeoplePage 内オーバーレイで開く
+  Future<Person?> _openPersonForm({Person? original}) {
+    final completer = Completer<Person?>();
+    setState(() {
+      _formOriginal = original;
+      _formCompleter = completer;
+    });
+    return completer.future;
+  }
 
-        return SafeArea(
-          bottom: true,
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 8,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(
-                    original == null ? '個人を追加' : '情報を編集',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: '名前',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 8),
-
-                  TextField(
-                    controller: nameKanaCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'なまえ（ふりがな）',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 8),
-
-                  TextField(
-                    controller: kaiCtrl,
-                    decoration: const InputDecoration(
-                      labelText: '戒名',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 8),
-
-                  TextField(
-                    controller: kaiKanaCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'かいみょう（ふりがな）',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 生年月日（タップで日付ピッカー）
-                  _DateField(
-                    label: '生年月日',
-                    controller: dobCtrl,
-                    onPickDate: () async {
-                      final s = await _pickDate(dobCtrl.text);
-                      if (s != null) dobCtrl.text = s;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 歿年月日（タップで日付ピッカー）
-                  _DateField(
-                    label: '歿年月日',
-                    controller: dodCtrl,
-                    onPickDate: () async {
-                      final s = await _pickDate(dodCtrl.text);
-                      if (s != null) dodCtrl.text = s;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  TextField(
-                    controller: ageCtrl,
-                    decoration: const InputDecoration(
-                      labelText: '享年（例：歿年-生年+1）',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 8),
-
-                  TextField(
-                    controller: relCtrl,
-                    decoration: const InputDecoration(
-                      labelText: '続柄',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 写真ファイル名（portraitフォルダから自動一覧）
-                  _PhotoField(
-                    label: '写真名1（assets/portrait/ 内）',
-                    controller: photo1Ctrl,
-                  ),
-                  const SizedBox(height: 8),
-                  _PhotoField(
-                    label: '写真名2（任意）',
-                    controller: photo2Ctrl,
-                  ),
-                  const SizedBox(height: 8),
-                  _PhotoField(
-                    label: '写真名3（任意）',
-                    controller: photo3Ctrl,
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextField(
-                    controller: noteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: '備考',
-                      border: OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(null),
-                        child: const Text('キャンセル'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          // 名前・戒名が完全に空なら保存しない
-                          if (nameCtrl.text.trim().isEmpty &&
-                              kaiCtrl.text.trim().isEmpty) {
-                            Navigator.of(context).pop(null);
-                            return;
-                          }
-                          final p = Person(
-                            name: nameCtrl.text.trim(),
-                            nameKana: nameKanaCtrl.text.trim(),
-                            kainame: kaiCtrl.text.trim(),
-                            kainameKana: kaiKanaCtrl.text.trim(),
-                            dob: dobCtrl.text.trim(),
-                            dod: dodCtrl.text.trim(),
-                            age: ageCtrl.text.trim(),
-                            relation: relCtrl.text.trim(),
-                            photo1: photo1Ctrl.text.trim(),
-                            photo2: photo2Ctrl.text.trim(),
-                            photo3: photo3Ctrl.text.trim(),
-                            note: noteCtrl.text.trim(),
-                          );
-                          Navigator.of(context).pop(p);
-                        },
-                        child: const Text('保存'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
+  /// フォームオーバーレイを閉じて、Future を完了させる
+  void _closePersonForm(Person? result) {
+    final completer = _formCompleter;
+    setState(() {
+      _formCompleter = null;
+      _formOriginal = null;
+    });
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(result);
+    }
   }
 
   /// 個人追加
@@ -550,6 +371,7 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final picked = await showDatePicker(
       context: context,
+      locale: const Locale('ja', 'JP'), // ★ ここを追加：カレンダーを日本語ロケールで表示
       initialDate: initial,
       firstDate: DateTime(1800),
       lastDate: DateTime(2100),
@@ -740,76 +562,67 @@ class _PeoplePageState extends State<PeoplePage> {
                           isHome: isHome, // ★HOMEなら太丸
                         ),
 
-                        // ★ 一覧1行のメインレイアウト（全部左寄せ）
-                        title: Column(
+                        // 一覧1行のメインレイアウト
+                        title: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 左：ふりがな＋名前（縦並び）
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (p.nameKana.isNotEmpty)
-                                        Text(
-                                          p.nameKana,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                fontSize: 11,
-                                                color: Colors.grey[600],
-                                              ),
-                                        ),
-                                      Text(
-                                        p.name.isEmpty ? '(無名)' : p.name,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium,
-                                      ),
-                                    ],
+                            // 左：ふりがな＋名前（縦並び）
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (p.nameKana.isNotEmpty)
+                                    Text(
+                                      p.nameKana,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            fontSize: 11,
+                                            color: Colors.grey[600],
+                                          ),
+                                    ),
+                                  Text(
+                                    p.name.isEmpty ? '(無名)' : p.name,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
                                   ),
-                                ),
+                                ],
+                              ),
+                            ),
 
-                                // 右：歿年月日チップ
-                                if (dodTextWareki.isNotEmpty)
-                                  Padding(
-                                    padding:
-                                        const EdgeInsets.only(left: 8, top: 2),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isMeinichi
-                                            ? Colors.redAccent // 命日
-                                            : isTsukiMeinichi
-                                                ? Colors.orangeAccent // 月命日
-                                                : Colors.grey.shade300, // 通常
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        dodTextWareki,
-                                        style: TextStyle(
-                                          fontSize: 13, // 少し大きめ
-                                          color: (isMeinichi || isTsukiMeinichi)
-                                              ? Colors.white
-                                              : Colors.black87,
-                                        ),
-                                      ),
+                            // 右：歿年月日チップ
+                            if (dodTextWareki.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8, top: 2),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isMeinichi
+                                        ? Colors.redAccent // 命日
+                                        : isTsukiMeinichi
+                                            ? Colors.orangeAccent // 月命日
+                                            : Colors.grey.shade300, // 通常
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    dodTextWareki,
+                                    style: TextStyle(
+                                      fontSize: 13, // 少し大きめ
+                                      color: (isMeinichi || isTsukiMeinichi)
+                                          ? Colors.white
+                                          : Colors.black87,
                                     ),
                                   ),
-                              ],
-                            ),
+                                ),
+                              ),
                           ],
                         ),
 
-                        // 一覧では備考は表示しない
-                        subtitle: null,
+                        subtitle: null, // 備考などは一覧では非表示
 
                         onTap: () => _showDetail(p),
                         onLongPress: () => _onLongPressPerson(p),
@@ -822,6 +635,9 @@ class _PeoplePageState extends State<PeoplePage> {
 
           // ★ 個人詳細のオーバーレイ
           if (_detailPerson != null) _buildDetailOverlay(),
+
+          // ★ 個人フォーム（新規／編集）のオーバーレイ
+          if (_formCompleter != null) _buildPersonFormOverlay(),
         ],
       ),
     );
@@ -857,215 +673,210 @@ class _PeoplePageState extends State<PeoplePage> {
       onClosed: _closeDetail,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: Center(
-          child: AspectRatio(
-            aspectRatio: 3 / 4, // タブレット風の縦横比
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6EFE9),
-                borderRadius: BorderRadius.circular(32),
-              ),
-              child: Column(
+        child: Column(
+          children: [
+            // 一番外枠右上の × ボタン
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _closeDetail,
+                ),
+              ],
+            ),
+
+            // 名前・ふりがな・続柄
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 上部の × ボタン
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, right: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                  // 左：ふりがなつき名前
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: _closeDetail,
+                        if (p.nameKana.isNotEmpty)
+                          Text(
+                            p.nameKana,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        Text(
+                          p.name.isEmpty ? '(無名)' : p.name,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  // 右：続柄（テキスト）
+                  if (p.relation.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8, top: 4),
+                      child: Text(
+                        p.relation,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
 
-                  // 名前・ふりがな・続柄
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
+            const SizedBox(height: 12),
+
+            // 写真部分
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: _PortraitCarousel(photos: photos),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // 下部の情報（戒名＋享年 → 生没年月日 → 備考 → ボタン）
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 8,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ふりがなつき戒名（左）＋ 右に享年
+                  if (p.kainameKana.isNotEmpty ||
+                      p.kainame.isNotEmpty ||
+                      p.age.isNotEmpty)
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 左：ふりがなつき名前
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (p.nameKana.isNotEmpty)
+                              if (p.kainameKana.isNotEmpty)
                                 Text(
-                                  p.nameKana,
+                                  p.kainameKana,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     fontSize: 12,
                                     color: Colors.grey[700],
                                   ),
                                 ),
-                              Text(
-                                p.name.isEmpty ? '(無名)' : p.name,
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 24,
+                              if (p.kainame.isNotEmpty)
+                                Text(
+                                  p.kainame,
+                                  style: theme.textTheme.bodyMedium
+                                      ?.copyWith(fontSize: 18),
                                 ),
-                              ),
                             ],
                           ),
                         ),
-                        // 右：続柄（テキスト）
-                        if (p.relation.isNotEmpty)
+                        if (p.age.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(left: 8, top: 4),
                             child: Text(
-                              p.relation,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey[800],
-                              ),
+                              '享年${p.age}才',
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(fontSize: 15),
                             ),
                           ),
                       ],
                     ),
-                  ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
-                  // 写真部分
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: _PortraitCarousel(photos: photos),
+                  // 生年月日と歿年月日
+                  if (bornText.isNotEmpty || diedText.isNotEmpty)
+                    Text(
+                      [
+                        bornText,
+                        diedText,
+                      ].where((e) => e.isNotEmpty).join(' 〜 '),
+                      style: theme.textTheme.bodyMedium?.copyWith(fontSize: 15),
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  // 備考
+                  if (p.note.isNotEmpty)
+                    Text(
+                      p.note,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // ★ HOMEに表示ボタン + 編集ボタン
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // 編集ボタン（編集後／キャンセル後に詳細を再度表示）
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.edit),
+                        label: const Text('編集'),
+                        onPressed: () async {
+                          final target = p; // 編集開始時の Person
+                          _closeDetail(); // いったん詳細を閉じる
+
+                          final edited = await _editPerson(target);
+
+                          if (!mounted) return;
+
+                          if (edited != null) {
+                            // 保存された場合：編集後の内容で詳細を再表示
+                            _showDetail(edited);
+                          } else {
+                            // キャンセルされた場合：元の内容で詳細を再表示
+                            _showDetail(target);
+                          }
+                        },
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 12),
-
-                  // 下部の情報（戒名＋享年 → 生没年月日 → 備考 → ボタン）
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 8,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ふりがなつき戒名（左）＋ 右に享年
-                        if (p.kainameKana.isNotEmpty ||
-                            p.kainame.isNotEmpty ||
-                            p.age.isNotEmpty)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (p.kainameKana.isNotEmpty)
-                                      Text(
-                                        p.kainameKana,
-                                        style:
-                                            theme.textTheme.bodySmall?.copyWith(
-                                          fontSize: 12,
-                                          color: Colors.grey[700],
-                                        ),
-                                      ),
-                                    if (p.kainame.isNotEmpty)
-                                      Text(
-                                        '戒名　${p.kainame}',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(fontSize: 15),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (p.age.isNotEmpty)
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.only(left: 8, top: 4),
-                                  child: Text(
-                                    '享年${p.age}才',
-                                    style: theme.textTheme.bodyMedium
-                                        ?.copyWith(fontSize: 15),
-                                  ),
-                                ),
-                            ],
-                          ),
-
-                        const SizedBox(height: 8),
-
-                        // 生年月日と歿年月日
-                        if (bornText.isNotEmpty || diedText.isNotEmpty)
-                          Text(
-                            [
-                              bornText,
-                              diedText,
-                            ].where((e) => e.isNotEmpty).join(' 〜 '),
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(fontSize: 15),
-                          ),
-
-                        const SizedBox(height: 8),
-
-                        // 備考
-                        if (p.note.isNotEmpty)
-                          Text(
-                            p.note,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-
-                        const SizedBox(height: 16),
-
-                        // ★ HOMEに表示ボタン + 編集ボタン
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            // 編集ボタン（編集後／キャンセル後に詳細を再度表示）
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.edit),
-                              label: const Text('編集'),
-                              onPressed: () async {
-                                final target = p; // 編集開始時の Person
-                                _closeDetail(); // いったん詳細を閉じる
-
-                                final edited = await _editPerson(target);
-
-                                if (!mounted) return;
-
-                                if (edited != null) {
-                                  // 保存された場合：編集後の内容で詳細を再表示
-                                  _showDetail(edited);
-                                } else {
-                                  // キャンセルされた場合：元の内容で詳細を再表示
-                                  _showDetail(target);
-                                }
-                              },
-                            ),
-
-                            const SizedBox(width: 8),
-                            ElevatedButton.icon(
-                              icon: Icon(
-                                isHome ? Icons.home : Icons.home_outlined,
-                              ),
-                              label: Text(
-                                isHome ? 'HOME表示をやめる' : 'HOMEに表示',
-                              ),
-                              onPressed: () async {
-                                await _toggleHomePerson(p, isHome);
-                                if (mounted) {
-                                  _closeDetail();
-                                }
-                              },
-                            ),
-                          ],
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        icon: Icon(
+                          isHome ? Icons.home : Icons.home_outlined,
                         ),
-                      ],
-                    ),
+                        label: Text(
+                          isHome ? 'HOME表示をやめる' : 'HOMEに表示',
+                        ),
+                        onPressed: () async {
+                          await _toggleHomePerson(p, isHome);
+                          if (mounted) {
+                            _closeDetail();
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
+          ],
         ),
+      ),
+    );
+  }
+
+  /// 個人フォームのオーバーレイ
+  Widget _buildPersonFormOverlay() {
+    return _BottomSheetOverlay(
+      onClosed: () => _closePersonForm(null), // 背景タップやスワイプでキャンセル扱い
+      child: _PersonFormSheet(
+        original: _formOriginal,
+        onFinished: _closePersonForm,
+        pickDate: _pickDate,
       ),
     );
   }
@@ -1143,8 +954,6 @@ class Person {
 
   /// CSVの1行から Person を生成
   /// - 新フォーマット（12列: 名前,なまえ,戒名,かいみょう,生年月日,歿年月日,享年,続柄,写真1,写真2,写真3,備考）
-  /// - 旧フォーマット（11列: 名前,ふりがな,戒名,生年月日,没年月日,享年,続柄,写真1,写真2,写真3,備考）
-  /// - さらに古い 9列フォーマット（名前,戒名,生年月日,没年月日,続柄,写真1,写真2,写真3,備考）
   factory Person.fromRow(List<dynamic> row) {
     final cells = row.map((e) => e.toString().trim()).toList();
 
@@ -1604,6 +1413,307 @@ Widget _safeAssetImage(
       child: Icon(fallbackIcon, color: Colors.grey, size: 28),
     ),
   );
+}
+
+/// =======================
+/// 個人フォームの中身（新規／編集共通）
+/// =======================
+class _PersonFormSheet extends StatefulWidget {
+  final Person? original;
+  final void Function(Person?) onFinished;
+  final Future<String?> Function(String current) pickDate;
+
+  const _PersonFormSheet({
+    required this.original,
+    required this.onFinished,
+    required this.pickDate,
+  });
+
+  @override
+  State<_PersonFormSheet> createState() => _PersonFormSheetState();
+}
+
+class _PersonFormSheetState extends State<_PersonFormSheet> {
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _nameKanaCtrl;
+  late final TextEditingController _kaiCtrl;
+  late final TextEditingController _kaiKanaCtrl;
+  late final TextEditingController _dobCtrl;
+  late final TextEditingController _dodCtrl;
+  late final TextEditingController _ageCtrl;
+  late final TextEditingController _relCtrl;
+  late final TextEditingController _photo1Ctrl;
+  late final TextEditingController _photo2Ctrl;
+  late final TextEditingController _photo3Ctrl;
+  late final TextEditingController _noteCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final o = widget.original;
+    _nameCtrl = TextEditingController(text: o?.name ?? '');
+    _nameKanaCtrl = TextEditingController(text: o?.nameKana ?? '');
+    _kaiCtrl = TextEditingController(text: o?.kainame ?? '');
+    _kaiKanaCtrl = TextEditingController(text: o?.kainameKana ?? '');
+    _dobCtrl = TextEditingController(text: o?.dob ?? '');
+    _dodCtrl = TextEditingController(text: o?.dod ?? '');
+    _ageCtrl = TextEditingController(text: o?.age ?? '');
+    _relCtrl = TextEditingController(text: o?.relation ?? '');
+    _photo1Ctrl = TextEditingController(text: o?.photo1 ?? '');
+    _photo2Ctrl = TextEditingController(text: o?.photo2 ?? '');
+    _photo3Ctrl = TextEditingController(text: o?.photo3 ?? '');
+    _noteCtrl = TextEditingController(text: o?.note ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _nameKanaCtrl.dispose();
+    _kaiCtrl.dispose();
+    _kaiKanaCtrl.dispose();
+    _dobCtrl.dispose();
+    _dodCtrl.dispose();
+    _ageCtrl.dispose();
+    _relCtrl.dispose();
+    _photo1Ctrl.dispose();
+    _photo2Ctrl.dispose();
+    _photo3Ctrl.dispose();
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onPickDob() async {
+    final s = await widget.pickDate(_dobCtrl.text);
+    if (s != null) {
+      setState(() {
+        _dobCtrl.text = s;
+      });
+    }
+  }
+
+  Future<void> _onPickDod() async {
+    final s = await widget.pickDate(_dodCtrl.text);
+    if (s != null) {
+      setState(() {
+        _dodCtrl.text = s;
+      });
+    }
+  }
+
+  void _onSave() {
+    // 名前・戒名が完全に空なら保存しない（キャンセルと同じ扱い）
+    if (_nameCtrl.text.trim().isEmpty && _kaiCtrl.text.trim().isEmpty) {
+      widget.onFinished(null);
+      return;
+    }
+
+    // ★ 享年が空で、生年月日と歿年月日が入っている場合は
+    //    「歿年 - 生年 + 1」で自動計算してセットする
+    String ageText = _ageCtrl.text.trim();
+    final dobText = _dobCtrl.text.trim();
+    final dodText = _dodCtrl.text.trim();
+
+    if (ageText.isEmpty && dobText.isNotEmpty && dodText.isNotEmpty) {
+      // "YYYY-MM-DD" / "YYYY/MM/DD" / "YYYY.MM.DD" に対応して年だけ抜き出し
+      int? _parseYear(String s) {
+        final parts = s.split(RegExp(r'[-/.]'));
+        if (parts.isEmpty) return null;
+        return int.tryParse(parts[0]);
+      }
+
+      final birthYear = _parseYear(dobText);
+      final deathYear = _parseYear(dodText);
+
+      if (birthYear != null && deathYear != null && deathYear >= birthYear) {
+        final calcAge = deathYear - birthYear + 1; // 歿年-生年+1
+        ageText = calcAge.toString();
+        _ageCtrl.text = ageText; // フォーム上にも反映
+      }
+    }
+
+    final p = Person(
+      name: _nameCtrl.text.trim(),
+      nameKana: _nameKanaCtrl.text.trim(),
+      kainame: _kaiCtrl.text.trim(),
+      kainameKana: _kaiKanaCtrl.text.trim(),
+      dob: dobText,
+      dod: dodText,
+      age: ageText,
+      relation: _relCtrl.text.trim(),
+      photo1: _photo1Ctrl.text.trim(),
+      photo2: _photo2Ctrl.text.trim(),
+      photo3: _photo3Ctrl.text.trim(),
+      note: _noteCtrl.text.trim(),
+    );
+    widget.onFinished(p);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.original != null;
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      bottom: true,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 上部：タイトル＋閉じる
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isEdit ? '情報を編集' : '個人を追加',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => widget.onFinished(null),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              TextField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: '名前',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 8),
+
+              TextField(
+                controller: _nameKanaCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'なまえ（ふりがな）',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 8),
+
+              TextField(
+                controller: _kaiCtrl,
+                decoration: const InputDecoration(
+                  labelText: '戒名',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 8),
+
+              TextField(
+                controller: _kaiKanaCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'かいみょう（ふりがな）',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 8),
+
+              // 生年月日（タップで日付ピッカー）
+              _DateField(
+                label: '生年月日',
+                controller: _dobCtrl,
+                onPickDate: _onPickDob,
+              ),
+              const SizedBox(height: 8),
+
+              // 歿年月日（タップで日付ピッカー）
+              _DateField(
+                label: '歿年月日',
+                controller: _dodCtrl,
+                onPickDate: _onPickDod,
+              ),
+              const SizedBox(height: 8),
+
+              TextField(
+                controller: _ageCtrl,
+                decoration: const InputDecoration(
+                  labelText: '享年（例：歿年-生年+1）',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 8),
+
+              TextField(
+                controller: _relCtrl,
+                decoration: const InputDecoration(
+                  labelText: '続柄',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+
+              // 写真ファイル名（portraitフォルダから自動一覧）
+              _PhotoField(
+                label: '写真名1（assets/portrait/ 内）',
+                controller: _photo1Ctrl,
+              ),
+              const SizedBox(height: 8),
+              _PhotoField(
+                label: '写真名2（任意）',
+                controller: _photo2Ctrl,
+              ),
+              const SizedBox(height: 8),
+              _PhotoField(
+                label: '写真名3（任意）',
+                controller: _photo3Ctrl,
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: _noteCtrl,
+                decoration: const InputDecoration(
+                  labelText: '備考',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => widget.onFinished(null),
+                    child: const Text('キャンセル'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _onSave,
+                    child: const Text('保存'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// =======================

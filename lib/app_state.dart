@@ -16,7 +16,7 @@ class IhaiItem {
   const IhaiItem({
     required this.assetPath,
     this.centerX = 0.5,
-    this.centerY = 0.65,
+    this.centerY = 0.7,
     this.scale = 1.0,
   });
 
@@ -81,7 +81,7 @@ class SelectedAssets extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ===== 仏壇の更新 =====
+  // ===== 仏壇 =====
 
   void setButsudan(String path) {
     _butsudan = path;
@@ -90,27 +90,55 @@ class SelectedAssets extends ChangeNotifier {
 
   // ===== 位牌の追加・削除・一括操作 =====
 
-  /// 新しい位牌を追加（中心やスケールはデフォルト）
+  /// 新しい位牌を追加
+  /// → 既存があれば「最後の位牌」と同じ高さ・位置・スケールで追加する
   void addIhai(String path) {
-    _ihaiItems.add(IhaiItem(assetPath: path));
+    double cx = 0.5;
+    double cy = 0.65;
+    double scale = 1.0;
+
+    if (_ihaiItems.isNotEmpty) {
+      final last = _ihaiItems.last;
+      cx = last.centerX;
+      cy = last.centerY;
+      scale = last.scale;
+    }
+
+    _ihaiItems.add(
+      IhaiItem(
+        assetPath: path,
+        centerX: cx,
+        centerY: cy,
+        scale: scale,
+      ),
+    );
+
     notifyListeners();
   }
 
-  /// 既存を全部消して 1 個だけにしたいとき用
+  /// 既存を全部消して1個だけにする
+  /// centerX・centerY を明確に指定して統一状態に戻す
   void setSingleIhai(String path) {
     _ihaiItems
       ..clear()
-      ..add(IhaiItem(assetPath: path));
+      ..add(
+        IhaiItem(
+          assetPath: path,
+          centerX: 0.5,
+          centerY: 0.7,
+          scale: 1.0,
+        ),
+      );
     notifyListeners();
   }
 
-  /// 指定パスの位牌を全部削除（同じ画像が複数あるときは全部消える）
+  /// 指定パスの位牌を全部削除
   void removeIhai(String path) {
     _ihaiItems.removeWhere((e) => e.assetPath == path);
     notifyListeners();
   }
 
-  /// インデックス指定で 1 個だけ削除
+  /// インデックス指定で1個だけ削除
   void removeIhaiAt(int index) {
     if (index < 0 || index >= _ihaiItems.length) return;
     _ihaiItems.removeAt(index);
@@ -123,7 +151,7 @@ class SelectedAssets extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 位牌の位置・スケールを更新
+  /// 位牌の位置・スケール更新
   void updateIhaiTransform(
     int index, {
     double? centerX,
@@ -140,7 +168,7 @@ class SelectedAssets extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// エフェクト動画のパスを設定（null で「エフェクトなし」）
+  /// エフェクト動画の設定
   void setEffectAsset(String? path) {
     _effectAsset = path;
     notifyListeners();
