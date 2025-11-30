@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert'; // AssetManifest.json や Personの保存に使用
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:csv/csv.dart';
@@ -371,7 +372,7 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final picked = await showDatePicker(
       context: context,
-      locale: const Locale('ja', 'JP'), // ★ ここを追加：カレンダーを日本語ロケールで表示
+      locale: const Locale('ja', 'JP'), // ★ カレンダーを日本語ロケールで表示
       initialDate: initial,
       firstDate: DateTime(1800),
       lastDate: DateTime(2100),
@@ -445,7 +446,7 @@ class _PeoplePageState extends State<PeoplePage> {
       return _formatYmdJaFromString(s);
     }
 
-    final yearStr = (eraYear == 1) ? '元年' : '${eraYear}年';
+    final yearStr = (eraYear == 1) ? '元年' : '$eraYear年';
     return '$era$yearStr${d.month}月${d.day}日';
   }
 
@@ -735,7 +736,7 @@ class _PeoplePageState extends State<PeoplePage> {
             // 写真部分
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 40),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: _PortraitCarousel(photos: photos),
@@ -1040,6 +1041,7 @@ class Person {
     return '$y$m$d';
   }
 
+  /// assets/portrait 配下の画像パスに変換
   List<String> get portraitPaths {
     final list = <String>[];
     if (photo1.isNotEmpty) list.add('assets/portrait/$photo1');
@@ -1118,7 +1120,7 @@ class _DateField extends StatelessWidget {
   }
 }
 
-/// 写真ファイル名入力 + portraitフォルダの中身を自動一覧
+/// 写真ファイル名入力 + portraitフォルダの中身を自動一覧（assets 専用）
 class _PhotoField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
@@ -1149,7 +1151,7 @@ class _PhotoField extends StatelessWidget {
         isDense: true,
         suffixIcon: IconButton(
           icon: const Icon(Icons.folder_open),
-          tooltip: 'portraitフォルダから選ぶ',
+          tooltip: 'assets/portrait/ から選ぶ',
           onPressed: () async {
             final paths = await _loadPortraitPaths();
             if (paths.isEmpty) {
@@ -1215,6 +1217,7 @@ class _PhotoField extends StatelessWidget {
           },
         ),
       ),
+      textInputAction: TextInputAction.next,
     );
   }
 }
@@ -1406,6 +1409,7 @@ Widget _safeAssetImage(
       child: Icon(fallbackIcon, color: Colors.grey, size: 28),
     );
   }
+
   return Image.asset(
     path,
     fit: fit,
@@ -1482,12 +1486,42 @@ class _PersonFormSheetState extends State<_PersonFormSheet> {
     super.dispose();
   }
 
+  /// 生年月日と歿年月日から享年を自動計算してフィールドに反映
+  /// 条件:
+  /// - 生年月日・歿年月日が両方入っている
+  /// - 年だけ取り出せる形式 (YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD)
+  /// → 歿年 - 生年 + 1 の結果を _ageCtrl にセット
+  void _autoFillAgeIfPossible() {
+    final dobText = _dobCtrl.text.trim();
+    final dodText = _dodCtrl.text.trim();
+    if (dobText.isEmpty || dodText.isEmpty) return;
+
+    int? parseYear(String s) {
+      final parts = s.split(RegExp(r'[-/.]'));
+      if (parts.isEmpty) return null;
+      return int.tryParse(parts[0]);
+    }
+
+    final birthYear = parseYear(dobText);
+    final deathYear = parseYear(dodText);
+
+    if (birthYear == null || deathYear == null) return;
+    if (deathYear < birthYear) return;
+
+    final calcAge = deathYear - birthYear + 1; // 満年齢ではなく数え年
+    setState(() {
+      _ageCtrl.text = calcAge.toString();
+    });
+  }
+
   Future<void> _onPickDob() async {
     final s = await widget.pickDate(_dobCtrl.text);
     if (s != null) {
       setState(() {
         _dobCtrl.text = s;
       });
+      // 日付が確定したタイミングで享年自動計算
+      _autoFillAgeIfPossible();
     }
   }
 
@@ -1497,6 +1531,8 @@ class _PersonFormSheetState extends State<_PersonFormSheet> {
       setState(() {
         _dodCtrl.text = s;
       });
+      // 日付が確定したタイミングで享年自動計算
+      _autoFillAgeIfPossible();
     }
   }
 
@@ -1507,27 +1543,25 @@ class _PersonFormSheetState extends State<_PersonFormSheet> {
       return;
     }
 
-    // ★ 享年が空で、生年月日と歿年月日が入っている場合は
-    //    「歿年 - 生年 + 1」で自動計算してセットする
+    // ★ 保存時にも保険として同じロジックを残しておく
     String ageText = _ageCtrl.text.trim();
     final dobText = _dobCtrl.text.trim();
     final dodText = _dodCtrl.text.trim();
 
     if (ageText.isEmpty && dobText.isNotEmpty && dodText.isNotEmpty) {
-      // "YYYY-MM-DD" / "YYYY/MM/DD" / "YYYY.MM.DD" に対応して年だけ抜き出し
-      int? _parseYear(String s) {
+      int? parseYear(String s) {
         final parts = s.split(RegExp(r'[-/.]'));
         if (parts.isEmpty) return null;
         return int.tryParse(parts[0]);
       }
 
-      final birthYear = _parseYear(dobText);
-      final deathYear = _parseYear(dodText);
+      final birthYear = parseYear(dobText);
+      final deathYear = parseYear(dodText);
 
       if (birthYear != null && deathYear != null && deathYear >= birthYear) {
-        final calcAge = deathYear - birthYear + 1; // 歿年-生年+1
+        final calcAge = deathYear - birthYear + 1;
         ageText = calcAge.toString();
-        _ageCtrl.text = ageText; // フォーム上にも反映
+        _ageCtrl.text = ageText;
       }
     }
 
