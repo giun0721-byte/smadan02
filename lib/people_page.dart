@@ -224,7 +224,7 @@ class _PeoplePageState extends State<PeoplePage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      useRootNavigator: true, // 編集フォームは従来どおりモーダル
+      useRootNavigator: true, // 編集フォームはフルスクリーンにかぶせる
       builder: (context) {
         final nameCtrl = TextEditingController(text: original?.name ?? '');
         final nameKanaCtrl =
@@ -744,76 +744,67 @@ class _PeoplePageState extends State<PeoplePage> {
                         title: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 1行目：ふりがな＋名前 ＋ 続柄
                             Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // ふりがな＋名前（縦並び）
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (p.nameKana.isNotEmpty)
+                                // 左：ふりがな＋名前（縦並び）
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (p.nameKana.isNotEmpty)
+                                        Text(
+                                          p.nameKana,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                fontSize: 11,
+                                                color: Colors.grey[600],
+                                              ),
+                                        ),
                                       Text(
-                                        p.nameKana,
+                                        p.name.isEmpty ? '(無名)' : p.name,
                                         style: Theme.of(context)
                                             .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              fontSize: 11,
-                                              color: Colors.grey[600],
-                                            ),
+                                            .titleMedium,
                                       ),
-                                    Text(
-                                      p.name.isEmpty ? '(無名)' : p.name,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium,
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
 
-                                // 続柄（名前の右に左寄せで表示）
-                                if (p.relation.isNotEmpty)
+                                // 右：歿年月日チップ
+                                if (dodTextWareki.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 8),
-                                    child: Text(
-                                      p.relation,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(color: Colors.grey[800]),
+                                    padding:
+                                        const EdgeInsets.only(left: 8, top: 2),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isMeinichi
+                                            ? Colors.redAccent // 命日
+                                            : isTsukiMeinichi
+                                                ? Colors.orangeAccent // 月命日
+                                                : Colors.grey.shade300, // 通常
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        dodTextWareki,
+                                        style: TextStyle(
+                                          fontSize: 13, // 少し大きめ
+                                          color: (isMeinichi || isTsukiMeinichi)
+                                              ? Colors.white
+                                              : Colors.black87,
+                                        ),
+                                      ),
                                     ),
                                   ),
                               ],
                             ),
-
-                            // 2行目：歿年月日チップ（左寄せ）
-                            if (dodTextWareki.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: isMeinichi
-                                        ? Colors.redAccent // 命日
-                                        : isTsukiMeinichi
-                                            ? Colors.orangeAccent // 月命日
-                                            : Colors.grey.shade300, // 通常
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    dodTextWareki,
-                                    style: TextStyle(
-                                      fontSize: 13, // 少し大きめ
-                                      color: (isMeinichi || isTsukiMeinichi)
-                                          ? Colors.white
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
 
@@ -829,7 +820,7 @@ class _PeoplePageState extends State<PeoplePage> {
             ],
           ),
 
-          // ★ 個人詳細のオーバーレイ（news_page と同じ考え方）
+          // ★ 個人詳細のオーバーレイ
           if (_detailPerson != null) _buildDetailOverlay(),
         ],
       ),
@@ -876,52 +867,65 @@ class _PeoplePageState extends State<PeoplePage> {
               ),
               child: Column(
                 children: [
-                  // 上部 名前・ふりがな・続柄／備考（名前の横）
+                  // 上部の × ボタン
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, right: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: _closeDetail,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // 名前・ふりがな・続柄
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (p.nameKana.isNotEmpty)
-                          Text(
-                            p.nameKana,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 12,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Text(
+                        // 左：ふりがなつき名前
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (p.nameKana.isNotEmpty)
+                                Text(
+                                  p.nameKana,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontSize: 12,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              Text(
                                 p.name.isEmpty ? '(無名)' : p.name,
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 24,
                                 ),
                               ),
-                            ),
-                            if (p.relation.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: _TagChip(label: p.relation),
-                              ),
-                            if (p.note.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 8),
-                                child: _TagChip(
-                                  label: p.note,
-                                  maxWidth: 120,
-                                ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
+                        // 右：続柄（テキスト）
+                        if (p.relation.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8, top: 4),
+                            child: Text(
+                              p.relation,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // 写真部分
                   Expanded(
@@ -934,9 +938,9 @@ class _PeoplePageState extends State<PeoplePage> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
-                  // 下部の情報
+                  // 下部の情報（戒名＋享年 → 生没年月日 → 備考 → ボタン）
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -945,38 +949,51 @@ class _PeoplePageState extends State<PeoplePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 戒名のふりがな
-                        if (p.kainameKana.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              p.kainameKana,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                          ),
-                        if (p.kainame.isNotEmpty || p.age.isNotEmpty)
+                        // ふりがなつき戒名（左）＋ 右に享年
+                        if (p.kainameKana.isNotEmpty ||
+                            p.kainame.isNotEmpty ||
+                            p.age.isNotEmpty)
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (p.kainame.isNotEmpty)
-                                Text(
-                                  '戒名　${p.kainame}',
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(fontSize: 15),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (p.kainameKana.isNotEmpty)
+                                      Text(
+                                        p.kainameKana,
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
+                                          fontSize: 12,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    if (p.kainame.isNotEmpty)
+                                      Text(
+                                        '戒名　${p.kainame}',
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(fontSize: 15),
+                                      ),
+                                  ],
                                 ),
-                              if (p.kainame.isNotEmpty && p.age.isNotEmpty)
-                                const SizedBox(width: 12),
+                              ),
                               if (p.age.isNotEmpty)
-                                Text(
-                                  '享年${p.age}才',
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(fontSize: 15),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(left: 8, top: 4),
+                                  child: Text(
+                                    '享年${p.age}才',
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(fontSize: 15),
+                                  ),
                                 ),
                             ],
                           ),
+
                         const SizedBox(height: 8),
+
+                        // 生年月日と歿年月日
                         if (bornText.isNotEmpty || diedText.isNotEmpty)
                           Text(
                             [
@@ -986,24 +1003,28 @@ class _PeoplePageState extends State<PeoplePage> {
                             style: theme.textTheme.bodyMedium
                                 ?.copyWith(fontSize: 15),
                           ),
+
+                        const SizedBox(height: 8),
+
+                        // 備考
+                        if (p.note.isNotEmpty)
+                          Text(
+                            p.note,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+
                         const SizedBox(height: 16),
 
                         // ★ HOMEに表示ボタン + 編集ボタン
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            TextButton(
-                              onPressed: _closeDetail,
-                              child: const Text('閉じる'),
-                            ),
-                            const SizedBox(width: 8),
-
-                            // 編集ボタン（編集後に自動で詳細を再表示）
+                            // 編集ボタン（編集後／キャンセル後に詳細を再度表示）
                             OutlinedButton.icon(
                               icon: const Icon(Icons.edit),
                               label: const Text('編集'),
                               onPressed: () async {
-                                final target = p; // 編集開始時の Person を保持
+                                final target = p; // 編集開始時の Person
                                 _closeDetail(); // いったん詳細を閉じる
 
                                 final edited = await _editPerson(target);
@@ -1585,41 +1606,8 @@ Widget _safeAssetImage(
   );
 }
 
-/// 詳細画面内の小さめタグ風チップ
-class _TagChip extends StatelessWidget {
-  final String label;
-  final double? maxWidth;
-  const _TagChip({required this.label, this.maxWidth});
-
-  @override
-  Widget build(BuildContext context) {
-    Widget child = Text(
-      label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontSize: 12),
-    );
-
-    if (maxWidth != null) {
-      child = ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth!),
-        child: child,
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: child,
-    );
-  }
-}
-
 /// =======================
-/// NEWSページと同じ「ページ内ボトムシート」用ウィジェット
+/// ページ内ボトムシート用ウィジェット
 /// =======================
 
 class _BottomSheetOverlay extends StatefulWidget {
