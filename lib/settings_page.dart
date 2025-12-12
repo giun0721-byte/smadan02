@@ -343,10 +343,11 @@ class _SettingsPageState extends State<SettingsPage> {
                             Align(
                               alignment: Alignment.bottomCenter,
                               child: FractionallySizedBox(
-                                heightFactor: 0.9,
+                                heightFactor: 1.0, // ★ プレビュー枠の縦100%
                                 child: Image.asset(
                                   sel.butsudan,
-                                  fit: BoxFit.contain,
+                                  fit: BoxFit.fitHeight, // ★ 縦優先（横は見切れてOK）
+                                  alignment: Alignment.bottomCenter,
                                 ),
                               ),
                             ),
@@ -362,19 +363,21 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
 
-                            // 4) 仏具画像（存在する場合のみ：最前面）
+// 4) 仏具画像（存在する場合のみ：最前面）
+//    ※仏壇と同じ「縦優先」「下基準」に揃える
                             if (_currentButsuguPath != null)
                               Align(
                                 alignment: Alignment.bottomCenter,
                                 child: FractionallySizedBox(
-                                  heightFactor: 0.9,
+                                  heightFactor: 1.0, // プレビュー枠の縦100%
                                   child: Image.asset(
                                     _currentButsuguPath!,
-                                    fit: BoxFit.contain,
+                                    fit: BoxFit.fitHeight, // ★ 縦優先に統一
+                                    alignment:
+                                        Alignment.bottomCenter, // ★ 下基準に統一
                                   ),
                                 ),
                               ),
-
                             // 5) 左上ラベル
                             Positioned(
                               left: 12,

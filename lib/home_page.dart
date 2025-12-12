@@ -250,15 +250,16 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
 
-              // 3) 仏壇メイン（エフェクトの手前）
+// 3) 仏壇メイン（縦いっぱい・縦優先）
               Positioned.fill(
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: SizedBox(
-                    height: h * 0.85, // 画面の高さに対して 85%
+                    height: h, // ★ 画面高100%
                     child: Image.asset(
                       sel.butsudan,
-                      fit: BoxFit.fitHeight, // 高さだけに合わせる（横幅は無視）
+                      fit: BoxFit.fitHeight, // ★ 縦優先（横は見切れてOK）
+                      alignment: Alignment.bottomCenter,
                     ),
                   ),
                 ),
@@ -277,10 +278,11 @@ class _HomePageState extends State<HomePage> {
                     child: Align(
                       alignment: Alignment.bottomCenter,
                       child: SizedBox(
-                        height: h * 0.85,
+                        height: h, // ★ 仏壇と同じ：画面高100%
                         child: Image.asset(
                           _currentButsuguPath!,
-                          fit: BoxFit.fitHeight,
+                          fit: BoxFit.fitHeight, // ★ 仏壇と同じ：縦優先
+                          alignment: Alignment.bottomCenter, // ★ 念のため揃える
                         ),
                       ),
                     ),
