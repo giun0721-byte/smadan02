@@ -30,6 +30,11 @@ class _SettingsPageState extends State<SettingsPage> {
   // 位牌テンプレート選択用
   String? _currentIhaiTemplate;
 
+  // ===== 仏具（_f.png）の存在確認キャッシュ =====
+  final Map<String, bool> _assetExistsCache = <String, bool>{};
+  String? _currentButsuguPath; // 選択中仏壇に対応する仏具パス（存在する場合のみ）
+  String? _lastCheckedButsudan; // 直近チェックした仏壇パス
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +64,55 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (_) {
       await controller.dispose();
     }
+  }
+
+  /// 仏壇パス "xxx.png" -> 仏具パス "xxx_f.png"
+  /// png以外は基本想定しないが、一応拡張子チェック。
+  String? _deriveButsuguPath(String butsudanPath) {
+    final lower = butsudanPath.toLowerCase();
+    if (!lower.endsWith('.png')) return null;
+
+    // "xxx.png" -> "xxx_f.png"
+    return butsudanPath.substring(0, butsudanPath.length - 4) + '_f.png';
+  }
+
+  /// assets に存在するか（rootBundle.load で確認）
+  Future<bool> _assetExists(String assetPath) async {
+    if (_assetExistsCache.containsKey(assetPath)) {
+      return _assetExistsCache[assetPath]!;
+    }
+    try {
+      await rootBundle.load(assetPath);
+      _assetExistsCache[assetPath] = true;
+      return true;
+    } catch (_) {
+      _assetExistsCache[assetPath] = false;
+      return false;
+    }
+  }
+
+  /// 選択中仏壇に対応する仏具（_f.png）を確認して state に反映
+  Future<void> _syncButsuguForButsudan(String butsudanPath) async {
+    _lastCheckedButsudan = butsudanPath;
+
+    final candidate = _deriveButsuguPath(butsudanPath);
+    if (candidate == null) {
+      if (!mounted) return;
+      setState(() {
+        _currentButsuguPath = null;
+      });
+      return;
+    }
+
+    final exists = await _assetExists(candidate);
+
+    // 途中で仏壇が切り替わっていたら反映しない
+    if (!mounted) return;
+    if (_lastCheckedButsudan != butsudanPath) return;
+
+    setState(() {
+      _currentButsuguPath = exists ? candidate : null;
+    });
   }
 
   /// assets/asset_index.json を読み取り、
@@ -127,13 +181,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
       String? initialEffect;
 
-      // 1) app_state に保存されているエフェクトが存在し、それが effects に含まれていればそれを使う
       if (savedEffect != null && effects.contains(savedEffect)) {
         initialEffect = savedEffect;
         debugPrint('=== initialEffect from savedEffect: $initialEffect');
-      }
-      // 2) まだ何も選ばれておらず、effects が空でなければ先頭を初期値にする
-      else if (savedEffect == null && effects.isNotEmpty) {
+      } else if (savedEffect == null && effects.isNotEmpty) {
         initialEffect = effects.first;
         debugPrint('=== initialEffect from first effects: $initialEffect');
         sel.setEffectAsset(initialEffect); // 初回だけデフォルトを保存
@@ -142,19 +193,19 @@ class _SettingsPageState extends State<SettingsPage> {
             '=== no initialEffect decided (savedEffect: $savedEffect, effects.isEmpty: ${effects.isEmpty})');
       }
 
-      // 3) 初期表示すべきエフェクトが決まっていれば、プレビュー用に初期化
       if (initialEffect != null) {
         await _initEffectVideo(initialEffect);
       }
 
+      // ★ 仏具（_f.png）も初期同期
+      await _syncButsuguForButsudan(sel.butsudan);
+
       debugPrint('=== _loadAssetLists: end (index OK) ===');
     } catch (e, st) {
-      // もし asset_index.json が無い / 壊れていた時のフォールバック
       debugPrint('=== _loadAssetLists ERROR (index): $e ===');
       debugPrint('=== stacktrace: $st ===');
 
       if (!mounted) return;
-      // 読み込み失敗時は、背景・仏壇・位牌・エフェクトをすべて固定値でフォールバック
       setState(() {
         _bgList = const [
           'assets/bg/bg1.jpg',
@@ -180,6 +231,10 @@ class _SettingsPageState extends State<SettingsPage> {
         _loadingAssets = false;
       });
 
+      // ★ フォールバック時も仏具同期
+      final sel = context.read<SelectedAssets>();
+      await _syncButsuguForButsudan(sel.butsudan);
+
       debugPrint('=== _loadAssetLists: end (fallback) ===');
     }
   }
@@ -196,6 +251,13 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final sel = context.watch<SelectedAssets>();
+
+    // ★ 仏壇が切り替わったら、次フレームで仏具（_f.png）存在チェックを走らせる
+    if (_lastCheckedButsudan != sel.butsudan) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _syncButsuguForButsudan(sel.butsudan);
+      });
+    }
 
     // シニアにも見やすいハイライト色＆エフェクトタイル用サイズ定数
     const highlightColor = Color(0xFFCC7A00); // 落ち着いたオレンジ
@@ -227,14 +289,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   width: double.infinity,
                   child: ClipRect(
                     child: Container(
-                      // ★ 若竹色系
                       color: const Color(0xFFDFF3E3),
-                      // 枠の「内側」に上下の余白をつける
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 14.0),
                         child: Stack(
                           children: [
-                            // 1) 背景：一番奥
+                            // 0) 背景：最背面
                             if (sel.hasCustomBg && sel.bgBytes != null)
                               Align(
                                 alignment: Alignment.center,
@@ -254,15 +314,14 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
 
-                            // 2) エフェクト動画（背景の一つ手前）
+                            // 1) エフェクト動画（背景の手前・一番奥）
                             if (_effectInitialized && _effectController != null)
                               Align(
                                 alignment: Alignment.center,
                                 child: IgnorePointer(
-                                  ignoring: true, // タップは背面に通す
+                                  ignoring: true,
                                   child: SizedBox.expand(
                                     child: FittedBox(
-                                      // 縦優先
                                       fit: BoxFit.fitHeight,
                                       child: SizedBox(
                                         width:
@@ -270,7 +329,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         height: _effectController!
                                             .value.size.height,
                                         child: Opacity(
-                                          opacity: 0.4, // 透け具合（0.0〜1.0）
+                                          opacity: 0.4,
                                           child:
                                               VideoPlayer(_effectController!),
                                         ),
@@ -280,7 +339,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ),
 
-                            // 3) 仏壇：エフェクトより手前
+                            // 2) 仏壇メイン画像（エフェクトの手前）
                             Align(
                               alignment: Alignment.bottomCenter,
                               child: FractionallySizedBox(
@@ -292,7 +351,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
 
-                            // 4) 位牌：一番手前
+                            // 3) 位牌画像（仏壇メインの手前）
                             Center(
                               child: FractionallySizedBox(
                                 heightFactor: 0.45,
@@ -303,7 +362,20 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
 
-                            // 5) 左上の「プレビュー」和風ボタン風ラベル
+                            // 4) 仏具画像（存在する場合のみ：最前面）
+                            if (_currentButsuguPath != null)
+                              Align(
+                                alignment: Alignment.bottomCenter,
+                                child: FractionallySizedBox(
+                                  heightFactor: 0.9,
+                                  child: Image.asset(
+                                    _currentButsuguPath!,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+
+                            // 5) 左上ラベル
                             Positioned(
                               left: 12,
                               top: 8,
@@ -367,7 +439,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                     scrollDirection: Axis.horizontal,
                                     child: Row(
                                       children: [
-                                        // カスタム背景がある場合のサムネイル
                                         if (sel.hasCustomBg &&
                                             sel.bgBytes != null)
                                           GestureDetector(
@@ -413,8 +484,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                               ),
                                             ),
                                           ),
-
-                                        // 通常背景
                                         ..._bgList.map((bgPath) {
                                           final isSelected =
                                               sel.bgAsset == bgPath &&
@@ -450,8 +519,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                             ),
                                           );
                                         }),
-
-                                        // 「背景画像を追加」ボタン（アイコンのみ）
                                         GestureDetector(
                                           onTap: () async {
                                             final bytes =
@@ -504,7 +571,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                       scrollDirection: Axis.horizontal,
                                       child: Row(
                                         children: [
-                                          // 「なし」ボタン
                                           GestureDetector(
                                             onTap: () async {
                                               await _effectController
@@ -544,8 +610,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                               ),
                                             ),
                                           ),
-
-                                          // エフェクト動画の候補
                                           ..._effectList.map((effectPath) {
                                             final isSelected =
                                                 _selectedEffect == effectPath;
@@ -612,7 +676,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
-                                  height: 140, // 余裕を持たせて はみ出しを見せる
+                                  height: 140,
                                   child: SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     child: Row(
@@ -625,10 +689,11 @@ class _SettingsPageState extends State<SettingsPage> {
                                             context
                                                 .read<SelectedAssets>()
                                                 .setButsudan(butsudanPath);
+                                            // 仏具は build 側で自動同期（addPostFrameCallback）
                                           },
                                           child: Container(
                                             width: 160,
-                                            height: 120, // 枠高さは120
+                                            height: 120,
                                             margin:
                                                 const EdgeInsets.only(right: 8),
                                             decoration: BoxDecoration(
@@ -641,7 +706,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                                 width: isSelected ? 2 : 1,
                                               ),
                                             ),
-                                            // 仏壇画像を 120% 表示して枠から少しはみ出す
                                             child: Transform.scale(
                                               scale: 1.2,
                                               child: Image.asset(

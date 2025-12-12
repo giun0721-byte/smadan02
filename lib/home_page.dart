@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'people_page.dart' show Person;
 import 'app_state.dart';
 
@@ -35,6 +37,11 @@ class _HomePageState extends State<HomePage> {
   String? _effectPath;
   VideoPlayerController? _effectController;
   bool _effectInitialized = false;
+
+  // ===== 仏具（_f.png）の存在確認と現在表示パス =====
+  final Map<String, bool> _assetExistsCache = <String, bool>{};
+  String? _currentButsuguPath; // 選択中仏壇に対応する仏具パス（存在する場合のみ）
+  String? _lastCheckedButsudan; // 直近チェックした仏壇パス
 
   @override
   void initState() {
@@ -136,12 +143,67 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ===== 仏具（_f.png）関連 =====
+
+  /// 仏壇パス "xxx.png" -> 仏具パス "xxx_f.png"
+  String? _deriveButsuguPath(String butsudanPath) {
+    final lower = butsudanPath.toLowerCase();
+    if (!lower.endsWith('.png')) return null;
+    return butsudanPath.substring(0, butsudanPath.length - 4) + '_f.png';
+  }
+
+  /// assets に存在するか（rootBundle.load で確認、結果はキャッシュ）
+  Future<bool> _assetExists(String assetPath) async {
+    if (_assetExistsCache.containsKey(assetPath)) {
+      return _assetExistsCache[assetPath]!;
+    }
+    try {
+      await rootBundle.load(assetPath);
+      _assetExistsCache[assetPath] = true;
+      return true;
+    } catch (_) {
+      _assetExistsCache[assetPath] = false;
+      return false;
+    }
+  }
+
+  /// 選択中仏壇に対応する仏具（_f.png）を確認して state に反映
+  Future<void> _syncButsuguForButsudan(String butsudanPath) async {
+    _lastCheckedButsudan = butsudanPath;
+
+    final candidate = _deriveButsuguPath(butsudanPath);
+    if (candidate == null) {
+      if (!mounted) return;
+      setState(() {
+        _currentButsuguPath = null;
+      });
+      return;
+    }
+
+    final exists = await _assetExists(candidate);
+
+    // 途中で仏壇が切り替わっていたら反映しない
+    if (!mounted) return;
+    if (_lastCheckedButsudan != butsudanPath) return;
+
+    setState(() {
+      _currentButsuguPath = exists ? candidate : null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final sel = context.watch<SelectedAssets>();
 
     // 選択中エフェクトに応じて動画をロード
     _loadEffectIfNeeded(sel.effectAsset);
+
+    // ★ 仏壇が切り替わったら、次フレームで仏具（_f.png）存在チェック
+    if (_lastCheckedButsudan != sel.butsudan) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _syncButsuguForButsudan(sel.butsudan);
+      });
+    }
 
     return Scaffold(
       body: LayoutBuilder(
@@ -188,7 +250,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
 
-              // 3) 仏壇
+              // 3) 仏壇メイン（エフェクトの手前）
               Positioned.fill(
                 child: Align(
                   alignment: Alignment.bottomCenter,
@@ -202,11 +264,30 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              // 4) 位牌たち（いちばん手前）
+              // 4) 位牌たち（仏壇メインの手前）
               for (int i = 0; i < ihaiItems.length; i++)
                 _buildIhaiWidget(context, ihaiItems[i], i, w, h),
 
-              // 5) HOMEに表示の丸型遺影（複数を1グループとして横中央に配置）
+// 5) 仏具（存在する場合のみ：位牌の手前）
+//    ※位牌のドラッグ/拡大縮小を阻害しないよう、タッチを透過させる
+              if (_currentButsuguPath != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: true,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: SizedBox(
+                        height: h * 0.85,
+                        child: Image.asset(
+                          _currentButsuguPath!,
+                          fit: BoxFit.fitHeight,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 6) HOMEに表示の丸型遺影（複数を1グループとして横中央に配置）
               if (_homePersons.isNotEmpty)
                 Positioned(
                   top: 16, // 位置を少し上に
@@ -265,7 +346,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-              // 6) HOMEに表示の詳細オーバーレイ（タップで閉じる）
+
+              // 7) HOMEに表示の詳細オーバーレイ（タップで閉じる）
               if (_overlayPerson != null && _homeOverlayOpen)
                 Positioned.fill(
                   child: GestureDetector(
@@ -418,7 +500,6 @@ class _HomePersonOverlayState extends State<_HomePersonOverlay> {
       color: Colors.transparent,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-        // 大枠は透明
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(24),
@@ -426,7 +507,6 @@ class _HomePersonOverlayState extends State<_HomePersonOverlay> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 写真：画面高さの40% ＋ 薄い影 ＋ なめらかフェード
             SizedBox(
               height: screenH * 0.40,
               child: Center(
@@ -479,10 +559,7 @@ class _HomePersonOverlayState extends State<_HomePersonOverlay> {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // 情報部分だけ背景色つきコンテナ
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -492,7 +569,6 @@ class _HomePersonOverlayState extends State<_HomePersonOverlay> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 名前＋続柄＋備考
                   Text(
                     widget.person.name.isEmpty ? '(無名)' : widget.person.name,
                     style: theme.textTheme.titleLarge?.copyWith(
@@ -513,8 +589,6 @@ class _HomePersonOverlayState extends State<_HomePersonOverlay> {
                     ],
                   ),
                   const SizedBox(height: 12),
-
-                  // 戒名ふりがな＋戒名＋享年
                   if (widget.person.kainameKana.isNotEmpty)
                     Text(
                       widget.person.kainameKana,
@@ -539,10 +613,7 @@ class _HomePersonOverlayState extends State<_HomePersonOverlay> {
                         ],
                       ),
                     ),
-
                   const SizedBox(height: 8),
-
-                  // 生没年月日
                   if (bornText.isNotEmpty || diedText.isNotEmpty)
                     Text(
                       [bornText, diedText]

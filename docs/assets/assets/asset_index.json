@@ -7,9 +7,10 @@
     "assets/bg/bg5.jpg"
   ],
   "butsudan": [
-    "assets/butsudan/butsudan-eva.png",
-    "assets/butsudan/butsudan-karaki.png",
-    "assets/butsudan/butsudan-modan.png"
+    "assets/butsudan/01karaki.png",
+    "assets/butsudan/02kagucho.png",
+    "assets/butsudan/03dog.png",
+    "assets/butsudan/04eva.png"
   ],
   "ihai": [
     "assets/ihai/eva01.png",
