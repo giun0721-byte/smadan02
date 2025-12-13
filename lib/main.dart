@@ -10,10 +10,17 @@ import 'people_page.dart';
 import 'settings_page.dart';
 import 'app_state.dart';
 
-void main() {
+Future<void> main() async {
+  // ★ SharedPreferences を含む非同期初期化のため必須
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ★ 起動時に保存済みの選択状態を復元してから Provider に渡す
+  final assets = SelectedAssets();
+  await assets.loadFromPrefs();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => SelectedAssets(), // 初期値は app_state.dart 内で定義済み
+    ChangeNotifierProvider<SelectedAssets>.value(
+      value: assets,
       child: const SmadanApp(),
     ),
   );
@@ -53,17 +60,17 @@ class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
-  _MainScreenState createState() => _MainScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomePage(),
-    const NewsPage(),
-    const PeoplePage(),
-    const SettingsPage(), // ← 設定タブ
+  final List<Widget> _pages = const [
+    HomePage(),
+    NewsPage(),
+    PeoplePage(),
+    SettingsPage(),
   ];
 
   @override

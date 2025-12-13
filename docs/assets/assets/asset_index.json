@@ -1,5 +1,7 @@
 {
   "bg": [
+    "assets/bg/01_sakura.mp4",
+    "assets/bg/02_grassland.mp4",
     "assets/bg/bg1.jpg",
     "assets/bg/bg2.jpg",
     "assets/bg/bg3.jpg",
@@ -24,16 +26,7 @@
     "assets/ihai/ihai07.png",
     "assets/ihai/ihai08.png",
     "assets/ihai/ihai09.png",
-    "assets/ihai/ihai10.png"
-  ],
-  "effect": [
-    "assets/effect/comet.mp4",
-    "assets/effect/gold-lightball.mp4",
-    "assets/effect/hanabi.mp4",
-    "assets/effect/leafs.mp4",
-    "assets/effect/leafs2.mp4",
-    "assets/effect/leafs3.mp4",
-    "assets/effect/particle1.mp4",
-    "assets/effect/snow1.mp4"
+    "assets/ihai/ihai10.png",
+    "assets/ihai/ihai11.png"
   ]
 }

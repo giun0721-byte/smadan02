@@ -19,21 +19,21 @@ class _SettingsPageState extends State<SettingsPage> {
   List<String> _bgList = [];
   List<String> _butsudanList = [];
   List<String> _ihaiCandidates = [];
-  List<String> _effectList = []; // effect 用
 
   bool _loadingAssets = true;
 
-  VideoPlayerController? _effectController;
-  bool _effectInitialized = false;
-  String? _selectedEffect; // 選択中のエフェクト動画
-
-  // 位牌テンプレート選択用
-  String? _currentIhaiTemplate;
+  // 位牌テンプレート選択用（追加ボタン用。現在選択の位牌は SelectedAssets.currentIhai で管理）
+  String? _pickedIhaiTemplate;
 
   // ===== 仏具（_f.png）の存在確認キャッシュ =====
   final Map<String, bool> _assetExistsCache = <String, bool>{};
   String? _currentButsuguPath; // 選択中仏壇に対応する仏具パス（存在する場合のみ）
   String? _lastCheckedButsudan; // 直近チェックした仏壇パス
+
+  // ===== 背景動画（bg mp4）用 =====
+  VideoPlayerController? _bgVideoController;
+  bool _bgVideoInitialized = false;
+  String? _bgVideoPath; // いま初期化済みの動画パス
 
   @override
   void initState() {
@@ -41,12 +41,32 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadAssetLists();
   }
 
-  // エフェクト動画の初期化（選び直しにも使う）
-  Future<void> _initEffectVideo(String assetPath) async {
-    // 既存コントローラがあれば破棄
-    await _effectController?.dispose();
-    _effectController = null;
-    _effectInitialized = false;
+  bool _isVideo(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.webm');
+  }
+
+  bool _isImage(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.png') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg');
+  }
+
+  Future<void> _initBgVideoIfNeeded(String assetPath) async {
+    if (!_isVideo(assetPath)) {
+      await _disposeBgVideo();
+      return;
+    }
+    if (_bgVideoPath == assetPath &&
+        _bgVideoInitialized &&
+        _bgVideoController != null) {
+      return; // 既に同じ動画を初期化済み
+    }
+
+    await _disposeBgVideo();
 
     final controller = VideoPlayerController.asset(assetPath);
     try {
@@ -57,26 +77,32 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (!mounted) return;
       setState(() {
-        _effectController = controller;
-        _effectInitialized = true;
-        _selectedEffect = assetPath;
+        _bgVideoController = controller;
+        _bgVideoInitialized = true;
+        _bgVideoPath = assetPath;
       });
     } catch (_) {
       await controller.dispose();
     }
   }
 
+  Future<void> _disposeBgVideo() async {
+    final c = _bgVideoController;
+    _bgVideoController = null;
+    _bgVideoInitialized = false;
+    _bgVideoPath = null;
+    if (c != null) {
+      await c.dispose();
+    }
+  }
+
   /// 仏壇パス "xxx.png" -> 仏具パス "xxx_f.png"
-  /// png以外は基本想定しないが、一応拡張子チェック。
   String? _deriveButsuguPath(String butsudanPath) {
     final lower = butsudanPath.toLowerCase();
     if (!lower.endsWith('.png')) return null;
-
-    // "xxx.png" -> "xxx_f.png"
-    return butsudanPath.substring(0, butsudanPath.length - 4) + '_f.png';
+    return '${butsudanPath.substring(0, butsudanPath.length - 4)}_f.png';
   }
 
-  /// assets に存在するか（rootBundle.load で確認）
   Future<bool> _assetExists(String assetPath) async {
     if (_assetExistsCache.containsKey(assetPath)) {
       return _assetExistsCache[assetPath]!;
@@ -91,22 +117,18 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// 選択中仏壇に対応する仏具（_f.png）を確認して state に反映
   Future<void> _syncButsuguForButsudan(String butsudanPath) async {
     _lastCheckedButsudan = butsudanPath;
 
     final candidate = _deriveButsuguPath(butsudanPath);
     if (candidate == null) {
       if (!mounted) return;
-      setState(() {
-        _currentButsuguPath = null;
-      });
+      setState(() => _currentButsuguPath = null);
       return;
     }
 
     final exists = await _assetExists(candidate);
 
-    // 途中で仏壇が切り替わっていたら反映しない
     if (!mounted) return;
     if (_lastCheckedButsudan != butsudanPath) return;
 
@@ -116,17 +138,14 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// assets/asset_index.json を読み取り、
-  /// assets/bg/, assets/butsudan/, assets/ihai/, assets/effect/ を抽出
+  /// assets/bg/, assets/butsudan/, assets/ihai/ を抽出
+  /// ※ bg は「画像＋動画」を同一リストとして扱う
   Future<void> _loadAssetLists() async {
     try {
-      debugPrint('=== _loadAssetLists: read assets/asset_index.json ===');
-
-      // 1) 事前に生成した asset_index.json を読み込む
       final jsonStr = await rootBundle.loadString('assets/asset_index.json');
       final Map<String, dynamic> index =
           json.decode(jsonStr) as Map<String, dynamic>;
 
-      // 2) 各カテゴリを取り出し（無ければ空リスト）
       List<String> asStringList(String key) {
         final v = index[key];
         if (v is List) {
@@ -135,111 +154,97 @@ class _SettingsPageState extends State<SettingsPage> {
         return <String>[];
       }
 
-      final bg = asStringList('bg');
+      final bg = asStringList('bg'); // ここに jpg/png/mp4 が入る想定
       final butsudan = asStringList('butsudan');
       final ihai = asStringList('ihai');
-      final effects = asStringList('effect');
-
-      debugPrint('=== bg from index: $bg');
-      debugPrint('=== butsudan from index: $butsudan');
-      debugPrint('=== ihai from index: $ihai');
-      debugPrint('=== effects from index: $effects');
 
       if (!mounted) return;
+
+      final sel = context.read<SelectedAssets>();
+
       setState(() {
         _bgList = bg.isNotEmpty
             ? bg
             : const [
                 'assets/bg/bg1.jpg',
                 'assets/bg/bg2.jpg',
-                'assets/bg/bg3.jpg',
               ];
+
         _butsudanList = butsudan.isNotEmpty
             ? butsudan
             : const [
-                'assets/butsudan/butsudan-karaki.png',
-                'assets/butsudan/butsudan-eva.png',
-                'assets/butsudan/butsudan-modan.png',
+                'assets/butsudan/01karaki.png',
+                'assets/butsudan/02kagucho.png',
               ];
+
         _ihaiCandidates = ihai.isNotEmpty
             ? ihai
             : const [
                 'assets/ihai/ihai01.png',
                 'assets/ihai/ihai02.png',
-                'assets/ihai/ihai03.png',
               ];
-        _currentIhaiTemplate ??=
+
+        _pickedIhaiTemplate ??=
             _ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null;
 
-        _effectList = effects;
+        // currentIhai が未設定なら、追加済み位牌の末尾を選択状態にする
+        if (sel.currentIhai == null) {
+          final init = sel.ihaiList.isNotEmpty
+              ? sel.ihaiList.last
+              : (_ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null);
+          if (init != null) {
+            sel.setCurrentIhai(init);
+          }
+        }
+
         _loadingAssets = false;
       });
 
-      // ★ 前回の選択を尊重してエフェクトを決定
-      final sel = context.read<SelectedAssets>();
-      final savedEffect = sel.effectAsset;
+      // 背景が動画ならプレビュー用に初期化
+      await _initBgVideoIfNeeded(sel.bgAsset);
 
-      String? initialEffect;
-
-      if (savedEffect != null && effects.contains(savedEffect)) {
-        initialEffect = savedEffect;
-        debugPrint('=== initialEffect from savedEffect: $initialEffect');
-      } else if (savedEffect == null && effects.isNotEmpty) {
-        initialEffect = effects.first;
-        debugPrint('=== initialEffect from first effects: $initialEffect');
-        sel.setEffectAsset(initialEffect); // 初回だけデフォルトを保存
-      } else {
-        debugPrint(
-            '=== no initialEffect decided (savedEffect: $savedEffect, effects.isEmpty: ${effects.isEmpty})');
-      }
-
-      if (initialEffect != null) {
-        await _initEffectVideo(initialEffect);
-      }
-
-      // ★ 仏具（_f.png）も初期同期
+      // 仏具（_f.png）も初期同期
       await _syncButsuguForButsudan(sel.butsudan);
-
-      debugPrint('=== _loadAssetLists: end (index OK) ===');
-    } catch (e, st) {
-      debugPrint('=== _loadAssetLists ERROR (index): $e ===');
-      debugPrint('=== stacktrace: $st ===');
-
+    } catch (_) {
       if (!mounted) return;
+
+      final sel = context.read<SelectedAssets>();
+
       setState(() {
         _bgList = const [
           'assets/bg/bg1.jpg',
           'assets/bg/bg2.jpg',
         ];
         _butsudanList = const [
-          'assets/butsudan/butsudan-karaki.png',
-          'assets/butsudan/butsudan-eva.png',
+          'assets/butsudan/01karaki.png',
+          'assets/butsudan/02kagucho.png',
         ];
-
         _ihaiCandidates = const [
           'assets/ihai/ihai01.png',
           'assets/ihai/ihai02.png',
         ];
-        _currentIhaiTemplate ??=
+
+        _pickedIhaiTemplate ??=
             _ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null;
 
-        _effectList = const [
-          'assets/effect/comet.mp4',
-          'assets/effect/leafs.mp4',
-        ];
+        if (sel.currentIhai == null) {
+          final init = sel.ihaiList.isNotEmpty
+              ? sel.ihaiList.last
+              : (_ihaiCandidates.isNotEmpty ? _ihaiCandidates.first : null);
+          if (init != null) {
+            sel.setCurrentIhai(init);
+          }
+        }
 
         _loadingAssets = false;
       });
 
-      // ★ フォールバック時も仏具同期
-      final sel = context.read<SelectedAssets>();
+      await _initBgVideoIfNeeded(sel.bgAsset);
       await _syncButsuguForButsudan(sel.butsudan);
-
-      debugPrint('=== _loadAssetLists: end (fallback) ===');
     }
   }
 
-  /// 画像ファイルを読み込み、Uint8List にする
+  /// 画像ファイルを読み込み、Uint8List にする（現状の「カスタム背景」用。不要ならUI側を消せます）
   Future<Uint8List?> _pickImageBytes() async {
     final picker = ImagePicker();
     final picked =
@@ -248,26 +253,84 @@ class _SettingsPageState extends State<SettingsPage> {
     return await picked.readAsBytes();
   }
 
+  Widget _buildBgPreview(SelectedAssets sel) {
+    // カスタム背景（画像）を残す場合
+    if (sel.hasCustomBg && sel.bgBytes != null) {
+      return Align(
+        alignment: Alignment.center,
+        child: Image.memory(
+          sel.bgBytes!,
+          fit: BoxFit.fitHeight,
+          width: double.infinity,
+        ),
+      );
+    }
+
+    final path = sel.bgAsset;
+
+    // 動画背景
+    if (_isVideo(path) && _bgVideoInitialized && _bgVideoController != null) {
+      return Align(
+        alignment: Alignment.center,
+        child: IgnorePointer(
+          ignoring: true,
+          child: SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.fitHeight,
+              child: SizedBox(
+                width: _bgVideoController!.value.size.width,
+                height: _bgVideoController!.value.size.height,
+                child: VideoPlayer(_bgVideoController!),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 画像背景
+    return Align(
+      alignment: Alignment.center,
+      child: Image.asset(
+        path,
+        fit: BoxFit.fitHeight,
+        width: double.infinity,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sel = context.watch<SelectedAssets>();
 
-    // ★ 仏壇が切り替わったら、次フレームで仏具（_f.png）存在チェックを走らせる
+    // 仏壇が切り替わったら、次フレームで仏具（_f.png）存在チェック
     if (_lastCheckedButsudan != sel.butsudan) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _syncButsuguForButsudan(sel.butsudan);
       });
     }
 
-    // シニアにも見やすいハイライト色＆エフェクトタイル用サイズ定数
-    const highlightColor = Color(0xFFCC7A00); // 落ち着いたオレンジ
-    const double effectRowHeight = 100.0;
-    const double effectTileBaseWidth = 140.0;
-    const double effectTileHeight = effectRowHeight * 0.7; // 高さ 70%
-    const double effectTileWidth = effectTileBaseWidth * 0.9; // 幅 90%
+    // 背景が切り替わったら（動画なら）初期化
+    if (!sel.hasCustomBg &&
+        _isVideo(sel.bgAsset) &&
+        _bgVideoPath != sel.bgAsset) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initBgVideoIfNeeded(sel.bgAsset);
+      });
+    }
+    // 背景が画像に変わったら動画を破棄
+    if (!sel.hasCustomBg &&
+        !_isVideo(sel.bgAsset) &&
+        _bgVideoController != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _disposeBgVideo();
+      });
+    }
 
-    // プレビュー用の位牌パス（選択中テンプレート最優先）
-    final previewIhaiPath = _currentIhaiTemplate ??
+    const highlightColor = Color(0xFFCC7A00);
+
+    // プレビュー用位牌
+    final previewIhaiPath = sel.currentIhai ??
         (sel.ihaiList.isNotEmpty
             ? sel.ihaiList.last
             : (_ihaiCandidates.isNotEmpty
@@ -279,11 +342,11 @@ class _SettingsPageState extends State<SettingsPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final totalH = constraints.maxHeight;
-            final previewH = totalH / 3; // 上部プレビューは画面高の1/3固定
+            final previewH = totalH / 3;
 
             return Column(
               children: [
-                // ===== 上部プレビュー（固定 1/3）=====
+                // ===== 上部プレビュー =====
                 SizedBox(
                   height: previewH,
                   width: double.infinity,
@@ -294,68 +357,27 @@ class _SettingsPageState extends State<SettingsPage> {
                         padding: const EdgeInsets.symmetric(vertical: 14.0),
                         child: Stack(
                           children: [
-                            // 0) 背景：最背面
-                            if (sel.hasCustomBg && sel.bgBytes != null)
-                              Align(
-                                alignment: Alignment.center,
-                                child: Image.memory(
-                                  sel.bgBytes!,
-                                  fit: BoxFit.fitHeight,
-                                  width: double.infinity,
-                                ),
-                              )
-                            else
-                              Align(
-                                alignment: Alignment.center,
-                                child: Image.asset(
-                                  sel.bgAsset,
-                                  fit: BoxFit.fitHeight,
-                                  width: double.infinity,
-                                ),
-                              ),
+                            // 0) 背景（画像 or 動画）
+                            _buildBgPreview(sel),
 
-                            // 1) エフェクト動画（背景の手前・一番奥）
-                            if (_effectInitialized && _effectController != null)
-                              Align(
-                                alignment: Alignment.center,
-                                child: IgnorePointer(
-                                  ignoring: true,
-                                  child: SizedBox.expand(
-                                    child: FittedBox(
-                                      fit: BoxFit.fitHeight,
-                                      child: SizedBox(
-                                        width:
-                                            _effectController!.value.size.width,
-                                        height: _effectController!
-                                            .value.size.height,
-                                        child: Opacity(
-                                          opacity: 0.4,
-                                          child:
-                                              VideoPlayer(_effectController!),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                            // 2) 仏壇メイン画像（エフェクトの手前）
+                            // 1) 仏壇メイン
                             Align(
                               alignment: Alignment.bottomCenter,
                               child: FractionallySizedBox(
-                                heightFactor: 1.0, // ★ プレビュー枠の縦100%
+                                heightFactor: 1.0,
                                 child: Image.asset(
                                   sel.butsudan,
-                                  fit: BoxFit.fitHeight, // ★ 縦優先（横は見切れてOK）
+                                  fit: BoxFit.fitHeight,
                                   alignment: Alignment.bottomCenter,
                                 ),
                               ),
                             ),
 
-                            // 3) 位牌画像（仏壇メインの手前）
-                            Center(
+                            // 2) 位牌（少し小さめ＋下げ位置は別途変更済みならそのまま）
+                            Align(
+                              alignment: const Alignment(0.0, 0.1),
                               child: FractionallySizedBox(
-                                heightFactor: 0.45,
+                                heightFactor: 0.3,
                                 child: Image.asset(
                                   previewIhaiPath,
                                   fit: BoxFit.contain,
@@ -363,22 +385,21 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
 
-// 4) 仏具画像（存在する場合のみ：最前面）
-//    ※仏壇と同じ「縦優先」「下基準」に揃える
+                            // 3) 仏具（存在する場合のみ）
                             if (_currentButsuguPath != null)
                               Align(
                                 alignment: Alignment.bottomCenter,
                                 child: FractionallySizedBox(
-                                  heightFactor: 1.0, // プレビュー枠の縦100%
+                                  heightFactor: 1.0,
                                   child: Image.asset(
                                     _currentButsuguPath!,
-                                    fit: BoxFit.fitHeight, // ★ 縦優先に統一
-                                    alignment:
-                                        Alignment.bottomCenter, // ★ 下基準に統一
+                                    fit: BoxFit.fitHeight,
+                                    alignment: Alignment.bottomCenter,
                                   ),
                                 ),
                               ),
-                            // 5) 左上ラベル
+
+                            // 左上ラベル
                             Positioned(
                               left: 12,
                               top: 8,
@@ -389,9 +410,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                   color: const Color(0xFFF5F0E6),
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(
-                                    color: const Color(0xFF8B5A2B),
-                                    width: 1.5,
-                                  ),
+                                      color: const Color(0xFF8B5A2B),
+                                      width: 1.5),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black26,
@@ -417,7 +437,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
 
-                // ===== 下部セレクション（残り 2/3 をスクロール）=====
+                // ===== 下部 =====
                 Expanded(
                   child: _loadingAssets
                       ? const Center(child: CircularProgressIndicator())
@@ -427,13 +447,12 @@ class _SettingsPageState extends State<SettingsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // ---------- 背景選択 ----------
+                                // ---------- 背景選択（画像＋動画） ----------
                                 const Text(
-                                  '背景選択',
+                                  '背景選択（画像 / 動画）',
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
@@ -442,6 +461,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     scrollDirection: Axis.horizontal,
                                     child: Row(
                                       children: [
+                                        // （任意）カスタム背景が不要なら、このブロックと「追加ボタン」を削除してください
                                         if (sel.hasCustomBg &&
                                             sel.bgBytes != null)
                                           GestureDetector(
@@ -459,9 +479,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                                 border: Border.all(
-                                                  color: Colors.green,
-                                                  width: 2,
-                                                ),
+                                                    color: Colors.green,
+                                                    width: 2),
                                               ),
                                               child: ClipRRect(
                                                 borderRadius:
@@ -470,32 +489,33 @@ class _SettingsPageState extends State<SettingsPage> {
                                                   children: [
                                                     Positioned.fill(
                                                       child: Image.memory(
-                                                        sel.bgBytes!,
-                                                        fit: BoxFit.cover,
-                                                      ),
+                                                          sel.bgBytes!,
+                                                          fit: BoxFit.cover),
                                                     ),
                                                     const Positioned(
                                                       right: 4,
                                                       top: 4,
                                                       child: Icon(
-                                                        Icons.check_circle,
-                                                        color: Colors.green,
-                                                      ),
+                                                          Icons.check_circle,
+                                                          color: Colors.green),
                                                     ),
                                                   ],
                                                 ),
                                               ),
                                             ),
                                           ),
+
                                         ..._bgList.map((bgPath) {
-                                          final isSelected =
-                                              sel.bgAsset == bgPath &&
-                                                  !sel.hasCustomBg;
+                                          final isSelected = !sel.hasCustomBg &&
+                                              sel.bgAsset == bgPath;
+
                                           return GestureDetector(
-                                            onTap: () {
+                                            onTap: () async {
                                               context
                                                   .read<SelectedAssets>()
                                                   .setBgAsset(bgPath);
+                                              await _initBgVideoIfNeeded(
+                                                  bgPath);
                                             },
                                             child: Container(
                                               width: 160,
@@ -514,14 +534,54 @@ class _SettingsPageState extends State<SettingsPage> {
                                               child: ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(8),
-                                                child: Image.asset(
-                                                  bgPath,
-                                                  fit: BoxFit.cover,
-                                                ),
+                                                child: _isImage(bgPath)
+                                                    ? Image.asset(bgPath,
+                                                        fit: BoxFit.cover)
+                                                    : Container(
+                                                        color: Colors.black12,
+                                                        child: Center(
+                                                          child: Column(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons.movie,
+                                                                  size: 30),
+                                                              const SizedBox(
+                                                                  height: 6),
+                                                              Padding(
+                                                                padding: const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        8.0),
+                                                                child: Text(
+                                                                  bgPath
+                                                                      .split(
+                                                                          '/')
+                                                                      .last,
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .center,
+                                                                  style: const TextStyle(
+                                                                      fontSize:
+                                                                          11),
+                                                                  maxLines: 2,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
                                               ),
                                             ),
                                           );
                                         }),
+
+                                        // （任意）端末画像から追加が不要なら削除
                                         GestureDetector(
                                           onTap: () async {
                                             final bytes =
@@ -529,9 +589,11 @@ class _SettingsPageState extends State<SettingsPage> {
                                             if (bytes != null &&
                                                 bytes.isNotEmpty) {
                                               if (!mounted) return;
+                                              // カスタムは画像のみ想定（動画は対象外）
                                               context
                                                   .read<SelectedAssets>()
                                                   .setBgCustom(bytes);
+                                              await _disposeBgVideo();
                                             }
                                           },
                                           child: Container(
@@ -544,10 +606,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                                   BorderRadius.circular(8),
                                             ),
                                             child: const Center(
-                                              child: Icon(
-                                                Icons.add_a_photo,
-                                                size: 32,
-                                              ),
+                                              child: Icon(Icons.add_a_photo,
+                                                  size: 32),
                                             ),
                                           ),
                                         ),
@@ -558,124 +618,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                 const SizedBox(height: 16),
 
-                                // ---------- エフェクト選択 ----------
-                                if (_effectList.isNotEmpty) ...[
-                                  const Text(
-                                    'エフェクト選択',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    height: effectRowHeight,
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Row(
-                                        children: [
-                                          GestureDetector(
-                                            onTap: () async {
-                                              await _effectController
-                                                  ?.dispose();
-                                              if (!mounted) return;
-                                              setState(() {
-                                                _effectController = null;
-                                                _effectInitialized = false;
-                                                _selectedEffect = null;
-                                              });
-                                              context
-                                                  .read<SelectedAssets>()
-                                                  .setEffectAsset(null);
-                                            },
-                                            child: Container(
-                                              width: effectTileWidth,
-                                              height: effectTileHeight,
-                                              margin: const EdgeInsets.only(
-                                                  right: 8),
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color: _selectedEffect == null
-                                                      ? highlightColor
-                                                      : Colors.grey,
-                                                  width: _selectedEffect == null
-                                                      ? 2
-                                                      : 1,
-                                                ),
-                                              ),
-                                              child: const Center(
-                                                child: Text(
-                                                  'なし',
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          ..._effectList.map((effectPath) {
-                                            final isSelected =
-                                                _selectedEffect == effectPath;
-                                            return GestureDetector(
-                                              onTap: () {
-                                                _initEffectVideo(effectPath);
-                                                context
-                                                    .read<SelectedAssets>()
-                                                    .setEffectAsset(effectPath);
-                                              },
-                                              child: Container(
-                                                width: effectTileWidth,
-                                                height: effectTileHeight,
-                                                margin: const EdgeInsets.only(
-                                                    right: 8),
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                    color: isSelected
-                                                        ? highlightColor
-                                                        : Colors.grey,
-                                                    width: isSelected ? 2 : 1,
-                                                  ),
-                                                ),
-                                                child: Column(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    const Icon(
-                                                      Icons.movie,
-                                                      size: 26,
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      effectPath
-                                                          .split('/')
-                                                          .last,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      style: const TextStyle(
-                                                          fontSize: 11),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            );
-                                          }),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-
-                                const SizedBox(height: 16),
-
                                 // ---------- 仏壇選択 ----------
                                 const Text(
                                   '仏壇選択',
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
@@ -692,7 +640,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                             context
                                                 .read<SelectedAssets>()
                                                 .setButsudan(butsudanPath);
-                                            // 仏具は build 側で自動同期（addPostFrameCallback）
                                           },
                                           child: Container(
                                             width: 160,
@@ -711,10 +658,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                             ),
                                             child: Transform.scale(
                                               scale: 1.2,
-                                              child: Image.asset(
-                                                butsudanPath,
-                                                fit: BoxFit.contain,
-                                              ),
+                                              child: Image.asset(butsudanPath,
+                                                  fit: BoxFit.contain),
                                             ),
                                           ),
                                         );
@@ -725,13 +670,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                 const SizedBox(height: 16),
 
-                                // ---------- 位牌テンプレート選択 ----------
+                                // ---------- 位牌テンプレート選択（追加用） ----------
                                 const Text(
                                   '位牌選択',
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
@@ -741,12 +685,15 @@ class _SettingsPageState extends State<SettingsPage> {
                                     child: Row(
                                       children: _ihaiCandidates.map((ihaiPath) {
                                         final isSelected =
-                                            _currentIhaiTemplate == ihaiPath;
+                                            _pickedIhaiTemplate == ihaiPath;
                                         return GestureDetector(
                                           onTap: () {
                                             setState(() {
-                                              _currentIhaiTemplate = ihaiPath;
+                                              _pickedIhaiTemplate = ihaiPath;
                                             });
+                                            context
+                                                .read<SelectedAssets>()
+                                                .setCurrentIhai(ihaiPath);
                                           },
                                           child: Container(
                                             width: 120,
@@ -765,10 +712,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                             child: ClipRRect(
                                               borderRadius:
                                                   BorderRadius.circular(8),
-                                              child: Image.asset(
-                                                ihaiPath,
-                                                fit: BoxFit.contain,
-                                              ),
+                                              child: Image.asset(ihaiPath,
+                                                  fit: BoxFit.contain),
                                             ),
                                           ),
                                         );
@@ -781,12 +726,11 @@ class _SettingsPageState extends State<SettingsPage> {
                                   alignment: Alignment.centerLeft,
                                   child: ElevatedButton.icon(
                                     onPressed: () {
-                                      final template = _currentIhaiTemplate ??
+                                      final template = _pickedIhaiTemplate ??
                                           (_ihaiCandidates.isNotEmpty
                                               ? _ihaiCandidates.first
                                               : null);
                                       if (template == null) return;
-
                                       context
                                           .read<SelectedAssets>()
                                           .addIhai(template);
@@ -800,11 +744,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
                                 // ---------- 現在の位牌一覧と削除 ----------
                                 const Text(
-                                  '現在の位牌（削除できます）',
+                                  '現在の位牌（タップで選択 / 削除できます）',
                                   style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
@@ -816,6 +759,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                         if (sel.ihaiList.isEmpty)
                                           const Text('（まだ位牌は追加されていません）'),
                                         ...sel.ihaiList.map((ihaiPath) {
+                                          final isCurrent =
+                                              sel.currentIhai == ihaiPath;
                                           return Container(
                                             width: 120,
                                             margin:
@@ -823,13 +768,37 @@ class _SettingsPageState extends State<SettingsPage> {
                                             child: Column(
                                               children: [
                                                 Expanded(
-                                                  child: ClipRRect(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                    child: Image.asset(
-                                                      ihaiPath,
-                                                      fit: BoxFit.contain,
+                                                  child: GestureDetector(
+                                                    onTap: () {
+                                                      context
+                                                          .read<
+                                                              SelectedAssets>()
+                                                          .setCurrentIhai(
+                                                              ihaiPath);
+                                                    },
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        border: Border.all(
+                                                          color: isCurrent
+                                                              ? highlightColor
+                                                              : Colors
+                                                                  .transparent,
+                                                          width:
+                                                              isCurrent ? 2 : 0,
+                                                        ),
+                                                      ),
+                                                      child: ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        child: Image.asset(
+                                                            ihaiPath,
+                                                            fit:
+                                                                BoxFit.contain),
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -865,7 +834,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    _effectController?.dispose();
+    _disposeBgVideo();
     super.dispose();
   }
 }
